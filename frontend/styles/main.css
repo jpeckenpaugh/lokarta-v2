@@ -1,0 +1,193 @@
+:root {
+  --bg-primary: #0a0b10;
+  --bg-panel: #14161f;
+  --bg-panel-header: #1e2130;
+  --border-color: #2e344d;
+  --border-highlight: #4c5680;
+  --gold-accent: #e5b95c;
+  --gold-glow: rgba(229, 185, 92, 0.25);
+  --text-primary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --hp-red: #e63946;
+  --mp-blue: #3a86ff;
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+.desktop-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: radial-gradient(circle at center, #10121a 0%, #06070a 100%);
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: var(--bg-panel-header);
+  border-bottom: 2px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
+}
+
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 0 6px var(--gold-accent));
+}
+
+.game-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  letter-spacing: 3px;
+  color: var(--gold-accent);
+  text-shadow: 0 0 8px var(--gold-glow);
+}
+
+.tagline {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-left: 1px solid var(--border-color);
+  padding-left: 10px;
+}
+
+.system-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.engine-badge {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  background-color: #0b0d14;
+  color: #38bdf8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+/* Main Frame (Viewport + Sidebar) */
+.main-frame {
+  display: flex;
+  flex: 1;
+  min-height: 0; /* allows children to scroll / size accurately */
+  overflow: hidden;
+}
+
+/* Viewport Panel */
+.viewport-panel {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #050608;
+  border-right: 2px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: crosshair;
+}
+
+#game-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* Sidebar HUD */
+.sidebar-hud {
+  width: 380px;
+  min-width: 340px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-panel);
+  border-left: 1px solid var(--border-color);
+  overflow-y: auto;
+  gap: 10px;
+  padding: 10px;
+}
+
+/* Bottom Combat Log */
+.combat-log-panel {
+  height: 140px;
+  min-height: 120px;
+  background-color: var(--bg-panel);
+  border-top: 2px solid var(--border-color);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(5, 6, 10, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-overlay.hidden {
+  display: none !important;
+}
+
+/* Generic Panel Header */
+.panel-header {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 1.5px;
+  color: var(--gold-accent);
+  background-color: var(--bg-panel-header);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Panel Frame Box */
+.hud-panel {
+  background-color: #0e1017;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+}

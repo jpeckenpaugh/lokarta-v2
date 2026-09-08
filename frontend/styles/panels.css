@@ -1,0 +1,557 @@
+/* --- Status Panel --- */
+.status-panel {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #1e2230;
+  padding-bottom: 6px;
+}
+
+.status-header .label {
+  color: var(--text-muted);
+}
+
+.status-header .val {
+  color: var(--text-primary);
+}
+
+.meter-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.meter-info {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.meter-label {
+  color: var(--text-muted);
+  font-weight: bold;
+}
+
+.meter-values {
+  color: var(--text-primary);
+}
+
+.meter-bar-track {
+  height: 12px;
+  background-color: #0b0c12;
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.meter-bar-fill {
+  height: 100%;
+  transition: width 0.15s ease-out;
+}
+
+.hp-fill {
+  background: linear-gradient(90deg, #b91c1c, #ef4444);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.mp-fill {
+  background: linear-gradient(90deg, #1d4ed8, #3b82f6);
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+}
+
+.active-buff-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #facc15;
+}
+
+/* --- Paperdoll Equipment Panel --- */
+.paperdoll-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.paperdoll-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px;
+}
+
+.paperdoll-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #0b0c12;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 4px;
+  position: relative;
+  transition: border-color 0.2s, background-color 0.2s;
+  min-height: 85px;
+}
+
+.paperdoll-slot:hover {
+  border-color: var(--border-highlight);
+  background-color: #121520;
+}
+
+.paperdoll-slot .slot-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.paperdoll-slot .slot-content {
+  font-size: 24px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paperdoll-slot .slot-item-name {
+  font-size: 0.7rem;
+  text-align: center;
+  color: var(--gold-accent);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.paperdoll-slot .unequip-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #2b1115;
+  border: 1px solid #7f1d1d;
+  color: #f87171;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paperdoll-slot .unequip-btn:hover {
+  background: #7f1d1d;
+  color: #fff;
+}
+
+/* --- Backpack Panel --- */
+.backpack-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.backpack-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px;
+}
+
+.backpack-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #0b0c12;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 4px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 80px;
+}
+
+.backpack-slot:hover {
+  border-color: var(--gold-accent);
+  background-color: #161926;
+}
+
+.backpack-slot .slot-num {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.65rem;
+  color: #475569;
+  font-family: var(--font-mono);
+}
+
+.backpack-slot .slot-content {
+  font-size: 22px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.backpack-slot .item-qty {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.65rem;
+  font-weight: bold;
+  color: #38bdf8;
+  font-family: var(--font-mono);
+}
+
+.backpack-slot .slot-item-name {
+  font-size: 0.7rem;
+  text-align: center;
+  color: var(--text-primary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.backpack-slot .slot-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.backpack-slot .use-btn,
+.backpack-slot .drop-btn {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--border-color);
+  background-color: #1e2230;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.backpack-slot .use-btn:hover {
+  background-color: #2563eb;
+  border-color: #3b82f6;
+}
+
+.backpack-slot .drop-btn:hover {
+  background-color: #991b1b;
+  border-color: #ef4444;
+}
+
+/* --- Ability Hotbar Panel --- */
+.hotbar-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.hotbar-buttons-container {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ability-buttons-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 6px;
+}
+
+.ground-actions-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  border-top: 1px solid #1e2230;
+  padding-top: 8px;
+}
+
+.hotbar-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #0d0f17;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s;
+  color: var(--text-primary);
+}
+
+.hotbar-btn:hover:not(.on-cooldown) {
+  border-color: var(--gold-accent);
+  background-color: #1b1e2c;
+  transform: translateY(-1px);
+}
+
+.hotbar-btn.on-cooldown {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.hotbar-btn .hotkey-badge {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--gold-accent);
+  font-weight: bold;
+}
+
+.hotbar-btn .btn-icon {
+  font-size: 18px;
+  margin: 2px 0;
+}
+
+.hotbar-btn .btn-name {
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hotbar-btn .btn-cost {
+  font-size: 0.65rem;
+  color: #38bdf8;
+  font-family: var(--font-mono);
+}
+
+.hotbar-btn .cooldown-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f87171;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: bold;
+  border-radius: 3px;
+}
+
+/* --- Combat & Event Log Panel --- */
+.combat-log-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.log-entries-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: #08090d;
+}
+
+.log-line {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.log-time {
+  color: #64748b;
+  margin-right: 6px;
+}
+
+.log-combat {
+  color: #f87171;
+}
+
+.log-spell {
+  color: #67e8f9;
+}
+
+.log-loot {
+  color: #4ade80;
+}
+
+.log-system {
+  color: #e2e8f0;
+}
+
+.log-warning {
+  color: #fbbf24;
+}
+
+.log-victory {
+  color: #f472b6;
+  font-weight: bold;
+}
+
+/* --- Modal Dialogs (Character Select, Victory, Defeat) --- */
+.character-select-modal {
+  background: #141722;
+  border: 2px solid var(--border-highlight);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(76, 86, 128, 0.3);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 680px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-header {
+  text-align: center;
+}
+
+.modal-header h2 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--gold-accent);
+  letter-spacing: 4px;
+  margin-bottom: 2px;
+}
+
+.modal-header .subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+}
+
+.prompt {
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.vocation-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.vocation-card {
+  background: #0b0d14;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s;
+}
+
+.vocation-card:hover {
+  border-color: var(--gold-accent);
+  box-shadow: 0 0 15px var(--gold-glow);
+}
+
+.vocation-card .card-icon {
+  font-size: 36px;
+  text-align: center;
+}
+
+.vocation-card h3 {
+  font-family: var(--font-display);
+  color: var(--gold-accent);
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.stats-preview {
+  display: flex;
+  justify-content: space-around;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  background: #151824;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.stat-val.hp { color: #ef4444; font-weight: bold; }
+.stat-val.mp { color: #3b82f6; font-weight: bold; }
+
+.vocation-card .desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.skills-list {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.select-btn, .action-btn {
+  background: linear-gradient(180deg, #2b324d 0%, #171b2b 100%);
+  border: 1px solid var(--gold-accent);
+  color: var(--gold-accent);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: auto;
+  transition: all 0.2s;
+}
+
+.select-btn:hover, .action-btn:hover {
+  background: var(--gold-accent);
+  color: #0a0b10;
+  box-shadow: 0 0 10px var(--gold-glow);
+}
+
+.result-modal {
+  background: #141722;
+  border: 2px solid var(--gold-accent);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 450px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.result-modal h2 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--gold-accent);
+}
+
+.result-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.character-summary {
+  background: #0b0d14;
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

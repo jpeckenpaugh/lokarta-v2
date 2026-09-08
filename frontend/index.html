@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lokarta: Come Into The Light</title>
+  <link rel="stylesheet" href="/styles/main.css" />
+  <link rel="stylesheet" href="/styles/panels.css" />
+</head>
+<body>
+  <div id="app" class="desktop-shell">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="logo-group">
+        <span class="game-icon">🕯️</span>
+        <h1 class="game-title">LOKARTA</h1>
+        <span class="tagline">Come Into The Light</span>
+      </div>
+      <div class="system-controls">
+        <span class="engine-badge">Fixed 10 Hz Tick</span>
+        <span class="engine-badge">60 FPS Canvas</span>
+      </div>
+    </header>
+
+    <!-- Main Game Frame -->
+    <div class="main-frame">
+      <!-- Left / Center: Viewport Canvas -->
+      <div class="viewport-panel">
+        <div class="canvas-wrapper">
+          <canvas id="game-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Right: Modular Side HUD Panels -->
+      <aside class="sidebar-hud">
+        <!-- Status Meters (HP / MP) -->
+        <section id="status-bars-container" class="hud-panel status-panel"></section>
+
+        <!-- Equipment (Paperdoll) -->
+        <section id="paperdoll-container" class="hud-panel paperdoll-panel"></section>
+
+        <!-- Backpack (6 slots) -->
+        <section id="backpack-container" class="hud-panel backpack-panel"></section>
+
+        <!-- Ability Hotbar -->
+        <section id="hotbar-container" class="hud-panel hotbar-panel"></section>
+      </aside>
+    </div>
+
+    <!-- Bottom: Scrolling Combat Log -->
+    <footer id="combat-log-container" class="hud-panel combat-log-panel"></footer>
+
+    <!-- Fullscreen Modal Overlay (Character Select, Victory, Defeat) -->
+    <div id="modal-overlay" class="modal-overlay hidden"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
