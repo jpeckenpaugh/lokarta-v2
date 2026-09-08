@@ -4,6 +4,7 @@ import { LightingSystem } from '../src/engine/LightingSystem';
 import { CombatSystem } from '../src/engine/CombatSystem';
 import { EntityAI } from '../src/engine/EntityAI';
 import { InventorySystem } from '../src/engine/InventorySystem';
+import { ProgressionSystem } from '../src/engine/ProgressionSystem';
 import { PlayerEntity, MonsterEntity } from '../src/types/entity';
 import { TileType } from '../src/types/world';
 import { CONFIG } from '../src/config';
@@ -41,6 +42,10 @@ describe('Frontend Engine Test Suite', () => {
       max_hp: 60,
       mana: 120,
       max_mana: 120,
+      level: 1,
+      xp: 0,
+      xpToNextLevel: ProgressionSystem.getXpForLevel(1),
+      skillBoosts: ProgressionSystem.getDefaultSkillBoosts(),
       current_floor: 1,
       paperdoll: { right_hand: null, left_hand: null, armor: null },
       backpack: [null, null, null, null, null, null],
@@ -399,6 +404,47 @@ describe('Frontend Engine Test Suite', () => {
     });
   });
 
+  describe('ProgressionSystem & Leveling', () => {
+    it('calculates correct XP thresholds for levels 1 to 20', () => {
+      expect(ProgressionSystem.getXpForLevel(1)).toBe(100);
+      expect(ProgressionSystem.getXpForLevel(2)).toBe(200);
+      expect(ProgressionSystem.getXpForLevel(20)).toBe(2000);
+    });
+
+    it('awards XP and levels up player, boosting HP/MP and skill multipliers', () => {
+      expect(player.level).toBe(1);
+      expect(player.xp).toBe(0);
+
+      // Add 50 XP -> no level up
+      const res1 = ProgressionSystem.awardXP(player, 50);
+      expect(res1.leveledUp).toBe(false);
+      expect(player.xp).toBe(50);
+      expect(player.level).toBe(1);
+
+      // Add 60 XP -> total 110 XP -> levels up to 2 (needed 100 XP)
+      const res2 = ProgressionSystem.awardXP(player, 60);
+      expect(res2.leveledUp).toBe(true);
+      expect(res2.newLevel).toBe(2);
+      expect(player.level).toBe(2);
+      expect(player.xp).toBe(10);
+      expect(player.max_hp).toBe(68); // Magician gains +8 HP
+      expect(player.max_mana).toBe(136); // Magician gains +16 MP
+      expect(player.hp).toBe(68); // Fully restored on level up
+      expect(player.mana).toBe(136);
+      expect(player.skillBoosts.damageMultiplier).toBeCloseTo(1.10);
+    });
+
+    it('calculates monster XP based on floor and type', () => {
+      const ratXpFloor1 = ProgressionSystem.getMonsterXp('giant_rat', 1);
+      const skelXpFloor5 = ProgressionSystem.getMonsterXp('crypt_skeleton', 5);
+      const bossXp = ProgressionSystem.getMonsterXp('abyssal_overlord', 20, true);
+
+      expect(ratXpFloor1).toBe(35);
+      expect(skelXpFloor5).toBe(67); // 35 + 4*8 = 67
+      expect(bossXp).toBe(500);
+    });
+  });
+
   describe('AudioSystem & Sound Effects', () => {
     it('initializes safely and toggles mute state without errors', async () => {
       const { soundFX, AudioSystem } = await import('../src/audio/AudioSystem');
@@ -430,6 +476,7 @@ describe('Frontend Engine Test Suite', () => {
       expect(() => soundFX.playEquip()).not.toThrow();
       expect(() => soundFX.playUnequip()).not.toThrow();
       expect(() => soundFX.playStairs()).not.toThrow();
+      expect(() => soundFX.playLevelUp()).not.toThrow();
       expect(() => soundFX.playVictory()).not.toThrow();
       expect(() => soundFX.playDefeat()).not.toThrow();
       expect(() => soundFX.playClick()).not.toThrow();

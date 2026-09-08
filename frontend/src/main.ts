@@ -1,5 +1,5 @@
 import { GameEngine } from './engine/GameEngine';
-import { CharacterSelect } from './ui/CharacterSelect';
+import { TitleScreen } from './ui/TitleScreen';
 import { VocationType } from './types/api';
 import { soundFX } from './audio/AudioSystem';
 
@@ -63,12 +63,12 @@ window.addEventListener('DOMContentLoaded', () => {
     'combat-log-container'
   );
 
-  // Show Character Selection Modal
-  const charSelect = new CharacterSelect('modal-overlay', async (vocation: VocationType) => {
+  // Show Atmospheric Title Screen
+  const titleScreen = new TitleScreen('modal-overlay', async (vocation: VocationType, isContinue?: boolean) => {
     soundFX.init();
     soundFX.playClick();
-    await engine.initializeSession(vocation);
+    await engine.initializeSession(vocation, isContinue);
   });
 
-  charSelect.show();
+  titleScreen.show();
 });

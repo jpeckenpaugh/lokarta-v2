@@ -23,6 +23,9 @@ DEFAULT_ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "max_hp": 60,
         "mana": 120,
         "max_mana": 120,
+        "level": 1,
+        "xp": 0,
+        "xp_to_next_level": 100,
         "current_floor": 1,
         "position": {"x": 2, "y": 2},
         "paperdoll": {
@@ -74,6 +77,9 @@ DEFAULT_ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "max_hp": 90,
         "mana": 60,
         "max_mana": 60,
+        "level": 1,
+        "xp": 0,
+        "xp_to_next_level": 100,
         "current_floor": 1,
         "position": {"x": 2, "y": 2},
         "paperdoll": {
@@ -162,7 +168,6 @@ class CharacterService:
                         stat_bonus=item["stat_bonus"],
                     )
                 elif loc == "backpack":
-                    # slot_name is "slot_0".."slot_5" or integer
                     try:
                         slot_idx = int(slot.replace("slot_", ""))
                     except ValueError:
@@ -178,6 +183,10 @@ class CharacterService:
                         )
                     )
 
+            level_val = char_row["level"] if "level" in char_row.keys() and char_row["level"] is not None else 1
+            xp_val = char_row["xp"] if "xp" in char_row.keys() and char_row["xp"] is not None else 0
+            xp_next_val = char_row["xp_to_next_level"] if "xp_to_next_level" in char_row.keys() and char_row["xp_to_next_level"] is not None else 100
+
             return CharacterResponse(
                 id=char_row["id"],
                 vocation=char_row["vocation"],
@@ -185,6 +194,9 @@ class CharacterService:
                 max_hp=char_row["max_hp"],
                 mana=char_row["mana"],
                 max_mana=char_row["max_mana"],
+                level=level_val,
+                xp=xp_val,
+                xp_to_next_level=xp_next_val,
                 current_floor=char_row["current_floor"],
                 position=Position(x=char_row["x_pos"], y=char_row["y_pos"]),
                 paperdoll=PaperdollDTO(**paperdoll_data),
@@ -202,14 +214,17 @@ class CharacterService:
             # Upsert character base record
             await conn.execute(
                 """
-                INSERT INTO characters (id, vocation, hp, max_hp, mana, max_mana, current_floor, x_pos, y_pos, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO characters (id, vocation, hp, max_hp, mana, max_mana, level, xp, xp_to_next_level, current_floor, x_pos, y_pos, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     vocation = excluded.vocation,
                     hp = excluded.hp,
                     max_hp = excluded.max_hp,
                     mana = excluded.mana,
                     max_mana = excluded.max_mana,
+                    level = excluded.level,
+                    xp = excluded.xp,
+                    xp_to_next_level = excluded.xp_to_next_level,
                     current_floor = excluded.current_floor,
                     x_pos = excluded.x_pos,
                     y_pos = excluded.y_pos,
@@ -222,6 +237,9 @@ class CharacterService:
                     save_data.max_hp,
                     save_data.mana,
                     save_data.max_mana,
+                    save_data.level,
+                    save_data.xp,
+                    save_data.xp_to_next_level,
                     save_data.current_floor,
                     save_data.position.x,
                     save_data.position.y,

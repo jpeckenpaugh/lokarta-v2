@@ -39,6 +39,9 @@ async def init_db():
                 max_hp INTEGER NOT NULL,
                 mana INTEGER NOT NULL,
                 max_mana INTEGER NOT NULL,
+                level INTEGER NOT NULL DEFAULT 1,
+                xp INTEGER NOT NULL DEFAULT 0,
+                xp_to_next_level INTEGER NOT NULL DEFAULT 100,
                 current_floor INTEGER NOT NULL DEFAULT 1,
                 x_pos INTEGER NOT NULL,
                 y_pos INTEGER NOT NULL,
@@ -46,6 +49,16 @@ async def init_db():
             );
             """
         )
+
+        # Migration helper for existing databases
+        cursor = await db.execute("PRAGMA table_info(characters);")
+        columns = [row[1] for row in await cursor.fetchall()]
+        if "level" not in columns:
+            await db.execute("ALTER TABLE characters ADD COLUMN level INTEGER NOT NULL DEFAULT 1;")
+        if "xp" not in columns:
+            await db.execute("ALTER TABLE characters ADD COLUMN xp INTEGER NOT NULL DEFAULT 0;")
+        if "xp_to_next_level" not in columns:
+            await db.execute("ALTER TABLE characters ADD COLUMN xp_to_next_level INTEGER NOT NULL DEFAULT 100;")
 
         # 2. Inventory Items table
         await db.execute(

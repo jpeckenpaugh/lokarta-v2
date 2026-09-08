@@ -14,11 +14,15 @@ from backend.models.dungeon import (
     DungeonSyncResponse,
 )
 from backend.seed_data.crypt_floor_1 import CRYPT_FLOOR_1_DATA
+from backend.services.floor_generator import generate_dungeon_floor
 
 
 class DungeonService:
     @staticmethod
     async def get_dungeon_floor(floor_id: int) -> DungeonFloorResponse:
+        if floor_id < 1 or floor_id > 20:
+            raise HTTPException(status_code=404, detail=f"Dungeon floor {floor_id} not found. Lokarta features floors 1 through 20.")
+
         conn = await get_db_connection()
         try:
             cursor = await conn.execute("SELECT * FROM dungeon_floors WHERE id = ?", (floor_id,))
@@ -26,28 +30,29 @@ class DungeonService:
 
             if not floor_row:
                 if floor_id == 1:
-                    # Insert floor 1 seed
-                    await conn.execute(
-                        """
-                        INSERT INTO dungeon_floors (id, name, width, height, tile_matrix, ambient_lights, initial_spawns, initial_loot)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            CRYPT_FLOOR_1_DATA["id"],
-                            CRYPT_FLOOR_1_DATA["name"],
-                            CRYPT_FLOOR_1_DATA["width"],
-                            CRYPT_FLOOR_1_DATA["height"],
-                            json.dumps(CRYPT_FLOOR_1_DATA["tile_matrix"]),
-                            json.dumps(CRYPT_FLOOR_1_DATA["ambient_lights"]),
-                            json.dumps(CRYPT_FLOOR_1_DATA["spawns"]),
-                            json.dumps(CRYPT_FLOOR_1_DATA["initial_loot"]),
-                        ),
-                    )
-                    await conn.commit()
-                    cursor = await conn.execute("SELECT * FROM dungeon_floors WHERE id = ?", (floor_id,))
-                    floor_row = await cursor.fetchone()
+                    floor_data = CRYPT_FLOOR_1_DATA
                 else:
-                    raise HTTPException(status_code=404, detail=f"Dungeon floor {floor_id} not found.")
+                    floor_data = generate_dungeon_floor(floor_id)
+
+                await conn.execute(
+                    """
+                    INSERT INTO dungeon_floors (id, name, width, height, tile_matrix, ambient_lights, initial_spawns, initial_loot)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        floor_data["id"],
+                        floor_data["name"],
+                        floor_data["width"],
+                        floor_data["height"],
+                        json.dumps(floor_data["tile_matrix"]),
+                        json.dumps(floor_data["ambient_lights"]),
+                        json.dumps(floor_data["spawns"]),
+                        json.dumps(floor_data["initial_loot"]),
+                    ),
+                )
+                await conn.commit()
+                cursor = await conn.execute("SELECT * FROM dungeon_floors WHERE id = ?", (floor_id,))
+                floor_row = await cursor.fetchone()
 
             tile_matrix = json.loads(floor_row["tile_matrix"])
             ambient_lights_raw = json.loads(floor_row["ambient_lights"])

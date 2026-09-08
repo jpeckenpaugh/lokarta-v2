@@ -22,6 +22,7 @@ import { PaperdollSlots } from '../types/item';
 import { VocationType, CharacterResponse, DungeonFloorResponse } from '../types/api';
 import { CONFIG } from '../config';
 import { soundFX } from '../audio/AudioSystem';
+import { ProgressionSystem } from './ProgressionSystem';
 
 export class GameEngine {
   public gridMap: GridMap;
@@ -35,6 +36,7 @@ export class GameEngine {
   public isRunning = false;
   public isFloorCleared = false;
   public isGameOver = false;
+  public currentFloorName = 'Subterranean Crypt';
 
   private tickTimer: number | null = null;
   private animFrameId: number | null = null;
@@ -101,6 +103,10 @@ export class GameEngine {
       max_hp: vocation === 'magician' ? 60 : 90,
       mana: vocation === 'magician' ? 120 : 60,
       max_mana: vocation === 'magician' ? 120 : 60,
+      level: 1,
+      xp: 0,
+      xpToNextLevel: ProgressionSystem.getXpForLevel(1),
+      skillBoosts: ProgressionSystem.getDefaultSkillBoosts(),
       current_floor: 1,
       paperdoll: { right_hand: null, left_hand: null, armor: null },
       backpack: [null, null, null, null, null, null],
@@ -109,7 +115,7 @@ export class GameEngine {
     };
   }
 
-  public async initializeSession(vocation: VocationType): Promise<void> {
+  public async initializeSession(vocation: VocationType, isContinue = false): Promise<void> {
     this.combatLogUI.clear();
     this.combatLogUI.log('Welcome to Lokarta: Come Into The Light.', 'system');
     this.isFloorCleared = false;
@@ -119,17 +125,32 @@ export class GameEngine {
       // 1. Fetch character profile from backend
       this.combatLogUI.log(`Loading ${vocation} profile from backend...`, 'system');
       const charData = await SyncManager.fetchCharacter(vocation);
+
+      if (!isContinue) {
+        charData.current_floor = 1;
+        charData.level = 1;
+        charData.xp = 0;
+        charData.xp_to_next_level = ProgressionSystem.getXpForLevel(1);
+        charData.hp = vocation === 'magician' ? 60 : 90;
+        charData.max_hp = vocation === 'magician' ? 60 : 90;
+        charData.mana = vocation === 'magician' ? 120 : 60;
+        charData.max_mana = vocation === 'magician' ? 120 : 60;
+      }
+
       this.applyCharacterData(charData);
 
-      // 2. Fetch dungeon floor 1
-      this.combatLogUI.log('Fetching Subterranean Crypt layout...', 'system');
-      const floorData = await SyncManager.fetchDungeonFloor(1);
+      const targetFloor = isContinue ? (charData.current_floor || 1) : 1;
+      this.player.current_floor = targetFloor;
+
+      // 2. Fetch dungeon floor
+      this.combatLogUI.log(`Fetching Floor ${targetFloor}/20 layout...`, 'system');
+      const floorData = await SyncManager.fetchDungeonFloor(targetFloor);
       this.applyDungeonData(floorData);
 
       // 3. Initial lighting calculation
       LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
 
-      this.combatLogUI.log(`Entered Subterranean Crypt at (${this.player.x}, ${this.player.y}).`, 'system');
+      this.combatLogUI.log(`Entered ${this.currentFloorName} at (${this.player.x}, ${this.player.y}).`, 'system');
       if (this.player.paperdoll.left_hand?.item_id === 'torch' || this.player.paperdoll.right_hand?.item_id === 'torch') {
         this.combatLogUI.log('Equipped Wooden Torch casts a warm glow (6 tiles radius).', 'spell');
       }
@@ -149,9 +170,13 @@ export class GameEngine {
     this.player.max_hp = data.max_hp;
     this.player.mana = data.mana;
     this.player.max_mana = data.max_mana;
-    this.player.current_floor = data.current_floor;
-    this.player.x = data.position.x;
-    this.player.y = data.position.y;
+    this.player.level = data.level || 1;
+    this.player.xp = data.xp || 0;
+    this.player.xpToNextLevel = data.xp_to_next_level || ProgressionSystem.getXpForLevel(this.player.level);
+    this.player.skillBoosts = ProgressionSystem.computeSkillBoosts(this.player.vocation, this.player.level);
+    this.player.current_floor = data.current_floor || 1;
+    this.player.x = data.position?.x ?? 2;
+    this.player.y = data.position?.y ?? 2;
 
     this.player.paperdoll = {
       right_hand: data.paperdoll.right_hand || null,
@@ -174,9 +199,10 @@ export class GameEngine {
   }
 
   private applyDungeonData(data: DungeonFloorResponse): void {
+    this.currentFloorName = data.name;
     this.gridMap.loadFromMatrix(data.tile_matrix);
 
-    // Ensure player always starts at the designated floor entrance
+    // Ensure player starts at the designated floor entrance
     if (data.entrance) {
       this.player.x = data.entrance.x;
       this.player.y = data.entrance.y;
@@ -207,7 +233,11 @@ export class GameEngine {
     this.monsters = data.spawns.map(s => ({
       id: s.id,
       type: s.type as any,
-      name: s.type === 'crypt_skeleton' ? 'Crypt Skeleton' : 'Shadow Cultist',
+      name: s.id.includes('boss')
+        ? 'Abyssal Overlord (Boss)'
+        : s.type === 'crypt_skeleton'
+        ? 'Crypt Skeleton'
+        : 'Shadow Cultist',
       x: s.x,
       y: s.y,
       hp: s.hp,
@@ -270,16 +300,19 @@ export class GameEngine {
     CombatSystem.decrementCooldowns(this.player, deltaSec);
     CombatSystem.decrementSpellTimers(this.player, deltaSec);
 
-    // Passive regeneration (Magician +2 MP / 5s; Archer +2 HP / 5s)
+    // Passive regeneration (scales with bonusRegen from skill boosts)
+    const bonusRegen = this.player.skillBoosts?.bonusRegen || 0;
     this.regenAccumulator += deltaSec;
     if (this.regenAccumulator >= 5.0) {
       this.regenAccumulator -= 5.0;
       if (this.player.vocation === 'magician' && this.player.mana < this.player.max_mana) {
-        this.player.mana = Math.min(this.player.max_mana, this.player.mana + 2);
-        this.addFloatingText('+2 MP', this.player.x, this.player.y, '#3b82f6');
+        const amt = 2 + bonusRegen;
+        this.player.mana = Math.min(this.player.max_mana, this.player.mana + amt);
+        this.addFloatingText(`+${amt} MP`, this.player.x, this.player.y, '#3b82f6');
       } else if (this.player.vocation === 'archer' && this.player.hp < this.player.max_hp) {
-        this.player.hp = Math.min(this.player.max_hp, this.player.hp + 2);
-        this.addFloatingText('+2 HP', this.player.x, this.player.y, '#22c55e');
+        const amt = 2 + bonusRegen;
+        this.player.hp = Math.min(this.player.max_hp, this.player.hp + amt);
+        this.addFloatingText(`+${amt} HP`, this.player.x, this.player.y, '#22c55e');
       }
     }
 
@@ -353,7 +386,7 @@ export class GameEngine {
 
   private updateHUD(): void {
     const tileItems = this.gridMap.getItems(this.player.x, this.player.y);
-    this.statusBarsUI.update(this.player);
+    this.statusBarsUI.update(this.player, this.currentFloorName);
     this.paperdollUI.update(this.player.paperdoll);
     this.backpackUI.update(this.player.backpack);
     this.hotbarUI.update(this.player, tileItems.length);
@@ -511,7 +544,7 @@ export class GameEngine {
       this.projectiles.push(...res.projectiles);
     }
 
-    // Handle defeated monster & loot drop
+    // Handle defeated monster & loot drop & XP progression
     if (res.defeatedMonsterId) {
       soundFX.playMonsterDeath();
       const index = this.monsters.findIndex(m => m.id === res.defeatedMonsterId);
@@ -523,6 +556,26 @@ export class GameEngine {
             this.combatLogUI.log(`${deadMonster.name} dropped ${item.name}.`, 'loot');
           }
         }
+
+        // Calculate and award XP
+        const isBoss = deadMonster.id.includes('boss') || deadMonster.max_hp >= 250;
+        const xpEarned = ProgressionSystem.getMonsterXp(deadMonster.type, this.player.current_floor, isBoss);
+        const lvlRes = ProgressionSystem.awardXP(this.player, xpEarned);
+
+        this.combatLogUI.log(`Gained +${xpEarned} XP from defeating ${deadMonster.name}.`, 'loot');
+        this.addFloatingText(`+${xpEarned} XP`, deadMonster.x, deadMonster.y, '#fbbf24');
+
+        if (lvlRes.leveledUp) {
+          soundFX.playLevelUp();
+          this.combatLogUI.log(
+            `⭐ LEVEL UP! You reached Level ${lvlRes.newLevel}! (+${lvlRes.hpGained} Max HP, +${lvlRes.manaGained} Max MP, +${lvlRes.damagePercentGained}% Damage)`,
+            'spell'
+          );
+          this.addFloatingText(`⭐ LEVEL UP! [Lv. ${lvlRes.newLevel}]`, this.player.x, this.player.y, '#ffd700');
+          this.updateHUD();
+          this.persistSave();
+        }
+
         this.monsters.splice(index, 1);
         if (this.selectedMonsterId === res.defeatedMonsterId) {
           this.selectedMonsterId = null;
@@ -609,7 +662,13 @@ export class GameEngine {
 
   private async persistSave(): Promise<void> {
     try {
-      await SyncManager.saveCharacter(this.player);
+      await SyncManager.saveCharacter({
+        ...this.player,
+        level: this.player.level,
+        xp: this.player.xp,
+        xp_to_next_level: this.player.xpToNextLevel,
+        position: { x: this.player.x, y: this.player.y },
+      } as any);
       this.combatLogUI.log('Progress saved.', 'system');
     } catch (err) {
       console.warn('Auto-save error:', err);
@@ -617,20 +676,53 @@ export class GameEngine {
   }
 
   private async handleFloorClear(): Promise<void> {
-    this.isFloorCleared = true;
-    soundFX.playStairs();
-    soundFX.playVictory();
-    this.combatLogUI.log('You stepped onto the glowing stairway! Floor 1 Cleared!', 'victory');
-    this.addFloatingText('FLOOR CLEARED!', this.player.x, this.player.y, '#38bdf8');
+    if (this.player.current_floor < 20) {
+      const nextFloor = this.player.current_floor + 1;
+      const floorBonusXp = 50 * this.player.current_floor;
+      const lvlRes = ProgressionSystem.awardXP(this.player, floorBonusXp);
 
-    try {
-      const syncRes = await SyncManager.syncDungeonProgress(this.player, 1);
-      this.combatLogUI.log(`Sync: ${syncRes.message}`, 'victory');
-    } catch (err) {
-      console.error('Floor clear sync error:', err);
+      soundFX.playStairs();
+      this.combatLogUI.log(
+        `Stepped on stairway! Descended to Floor ${nextFloor}/20 (+${floorBonusXp} Floor Clear XP)!`,
+        'victory'
+      );
+      this.addFloatingText(`FLOOR ${nextFloor}`, this.player.x, this.player.y, '#38bdf8');
+
+      if (lvlRes.leveledUp) {
+        soundFX.playLevelUp();
+        this.combatLogUI.log(
+          `⭐ LEVEL UP! You reached Level ${lvlRes.newLevel}! (+${lvlRes.hpGained} Max HP, +${lvlRes.manaGained} Max MP)`,
+          'spell'
+        );
+      }
+
+      try {
+        await SyncManager.syncDungeonProgress(this.player, this.player.current_floor);
+        const nextFloorData = await SyncManager.fetchDungeonFloor(nextFloor);
+        this.player.current_floor = nextFloor;
+        this.applyDungeonData(nextFloorData);
+        this.isFloorCleared = false;
+        LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
+        this.updateHUD();
+        await this.persistSave();
+      } catch (err) {
+        console.error('Floor transition error:', err);
+      }
+    } else {
+      // Floor 20 Final Clear!
+      this.isFloorCleared = true;
+      soundFX.playVictory();
+      this.combatLogUI.log('🎉 YOU CONQUERED THE ABYSSAL SANCTUM! ALL 20 FLOORS CLEARED!', 'victory');
+      this.addFloatingText('CAMPAIGN COMPLETED!', this.player.x, this.player.y, '#ffd700');
+
+      try {
+        await SyncManager.syncDungeonProgress(this.player, 20);
+      } catch (err) {
+        console.error('Floor 20 sync error:', err);
+      }
+
+      this.showVictoryModal();
     }
-
-    this.showVictoryModal();
   }
 
   private addFloatingText(text: string, gridX: number, gridY: number, color: string): void {
@@ -718,11 +810,13 @@ export class GameEngine {
     modal.classList.remove('hidden');
     modal.innerHTML = `
       <div class="result-modal victory-modal">
-        <h2>🎉 VICTORY!</h2>
-        <p class="result-subtitle">Subterranean Crypt - Floor 1 Cleared</p>
-        <p>You have braved the darkness, conquered the crypt abominations, and reached the surface stairway!</p>
+        <h2>🏆 ULTIMATE VICTORY!</h2>
+        <p class="result-subtitle">Lokarta Subterranean Campaign - All 20 Floors Cleared</p>
+        <p>You have illuminated the darkest depths of the subterranean abyss and vanquished the Void Core!</p>
         <div class="character-summary">
           <p><strong>Vocation:</strong> ${this.player.vocation.toUpperCase()}</p>
+          <p><strong>Final Level:</strong> Level ${this.player.level}</p>
+          <p><strong>Damage Boost:</strong> +${Math.round(((this.player.skillBoosts?.damageMultiplier || 1) - 1) * 100)}%</p>
           <p><strong>Remaining HP:</strong> ${this.player.hp} / ${this.player.max_hp}</p>
           <p><strong>Remaining MP:</strong> ${this.player.mana} / ${this.player.max_mana}</p>
           <p><strong>Backpack Items:</strong> ${this.player.backpack.filter(Boolean).length} / 6 slots</p>
@@ -747,8 +841,8 @@ export class GameEngine {
     modal.innerHTML = `
       <div class="result-modal defeat-modal">
         <h2>💀 YOU HAVE PERISHED</h2>
-        <p class="result-subtitle">The Crypt Claims Another Soul</p>
-        <p>Your light has been extinguished by the subterranean shadows.</p>
+        <p class="result-subtitle">Floor ${this.player.current_floor}/20 Claims Another Soul</p>
+        <p>Your light has been extinguished in the subterranean shadows.</p>
         <button class="action-btn" id="btn-retry">Try Again</button>
       </div>
     `;

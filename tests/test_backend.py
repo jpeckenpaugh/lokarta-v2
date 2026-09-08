@@ -252,3 +252,72 @@ async def test_dungeon_sync():
         char_data = char_res.json()
         assert char_data["hp"] == 75
         assert char_data["position"] == {"x": 37, "y": 37}
+
+
+@pytest.mark.asyncio
+async def test_get_multiple_dungeon_floors_and_boss_floor_20():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Check Floor 5 (Crypts)
+        res5 = await client.get("/api/dungeons/5")
+        assert res5.status_code == 200
+        data5 = res5.json()
+        assert data5["id"] == 5
+        assert "Subterranean Crypt" in data5["name"]
+        assert len(data5["spawns"]) > 0
+
+        # Check Floor 10 (Catacombs)
+        res10 = await client.get("/api/dungeons/10")
+        assert res10.status_code == 200
+        data10 = res10.json()
+        assert data10["id"] == 10
+        assert "Catacombs" in data10["name"]
+
+        # Check Floor 20 (Final Boss Floor)
+        res20 = await client.get("/api/dungeons/20")
+        assert res20.status_code == 200
+        data20 = res20.json()
+        assert data20["id"] == 20
+        assert "Abyssal Sanctum" in data20["name"]
+        boss_spawn = next((s for s in data20["spawns"] if "boss" in s["id"]), None)
+        assert boss_spawn is not None
+        assert boss_spawn["hp"] >= 250
+
+        # Check Floor 21 (Out of bounds -> 404)
+        res21 = await client.get("/api/dungeons/21")
+        assert res21.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_character_level_and_xp_persistence():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.get("/api/characters/magician")
+
+        save_payload = {
+            "id": "magician",
+            "vocation": "magician",
+            "hp": 76,
+            "max_hp": 76,
+            "mana": 152,
+            "max_mana": 152,
+            "level": 3,
+            "xp": 140,
+            "xp_to_next_level": 300,
+            "current_floor": 2,
+            "position": {"x": 2, "y": 2},
+            "paperdoll": {},
+            "backpack": [],
+        }
+
+        save_res = await client.post("/api/character/save", json=save_payload)
+        assert save_res.status_code == 200
+
+        fetch_res = await client.get("/api/characters/magician")
+        assert fetch_res.status_code == 200
+        fetched = fetch_res.json()
+        assert fetched["level"] == 3
+        assert fetched["xp"] == 140
+        assert fetched["xp_to_next_level"] == 300
+        assert fetched["current_floor"] == 2
+

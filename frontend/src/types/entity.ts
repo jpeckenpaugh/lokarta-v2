@@ -8,6 +8,12 @@ export interface Coordinates {
   y: number;
 }
 
+export interface SkillBoosts {
+  damageMultiplier: number;
+  bonusRange: number;
+  bonusRegen: number;
+}
+
 export interface PlayerEntity {
   id: string;
   vocation: VocationType;
@@ -18,6 +24,10 @@ export interface PlayerEntity {
   max_hp: number;
   mana: number;
   max_mana: number;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+  skillBoosts: SkillBoosts;
   current_floor: number;
   paperdoll: PaperdollSlots;
   backpack: (Item | null)[];

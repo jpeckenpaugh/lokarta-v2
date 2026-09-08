@@ -542,6 +542,40 @@ export class AudioSystem {
   }
 
   /**
+   * Sparkling Level-Up Fanfare Chime.
+   */
+  public playLevelUp(): void {
+    if (!this.canPlay() || !this.ctx || !this.masterGain) return;
+    const now = this.ctx.currentTime;
+
+    const notes = [
+      { f: 440.0, t: 0.0 },   // A4
+      { f: 554.37, t: 0.08 }, // C#5
+      { f: 659.25, t: 0.16 }, // E5
+      { f: 880.0, t: 0.24 },  // A5
+      { f: 1108.73, t: 0.36 },// C#6
+      { f: 1318.51, t: 0.48 } // E6
+    ];
+
+    notes.forEach(n => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(n.f, now + n.t);
+
+      gain.gain.setValueAtTime(0.2, now + n.t);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + n.t + 0.45);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+
+      osc.start(now + n.t);
+      osc.stop(now + n.t + 0.45);
+    });
+  }
+
+  /**
    * Defeat / Game Over somber tone.
    */
   public playDefeat(): void {

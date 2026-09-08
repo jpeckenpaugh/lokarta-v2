@@ -63,8 +63,11 @@ export class CombatSystem {
       return { success: false, message: 'Wand Spark is on cooldown.' };
     }
 
+    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const bonusRng = player.skillBoosts?.bonusRange || 0;
+
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
-    if (dist > CONFIG.MAGICIAN_SPARK_RANGE + 0.5) {
+    if (dist > (CONFIG.MAGICIAN_SPARK_RANGE + bonusRng) + 0.5) {
       return { success: false, message: 'Target is out of range for Wand Spark.' };
     }
 
@@ -73,7 +76,8 @@ export class CombatSystem {
     }
 
     player.cooldowns['wand_spark'] = CONFIG.MAGICIAN_SPARK_COOLDOWN_SEC;
-    const damage = CombatSystem.randomBetween(CONFIG.MAGICIAN_SPARK_DAMAGE_MIN, CONFIG.MAGICIAN_SPARK_DAMAGE_MAX);
+    const baseDmg = CombatSystem.randomBetween(CONFIG.MAGICIAN_SPARK_DAMAGE_MIN, CONFIG.MAGICIAN_SPARK_DAMAGE_MAX);
+    const damage = Math.round(baseDmg * mult);
     target.hp -= damage;
 
     const projectile: Projectile = {
@@ -146,6 +150,10 @@ export class CombatSystem {
     player.mana -= CONFIG.MAGICIAN_BEAM_MANA_COST;
     player.cooldowns['energy_beam'] = CONFIG.MAGICIAN_BEAM_COOLDOWN_SEC;
 
+    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const bonusRng = player.skillBoosts?.bonusRange || 0;
+    const beamRange = CONFIG.MAGICIAN_BEAM_RANGE + bonusRng;
+
     const dx = facing === 'left' ? -1 : facing === 'right' ? 1 : 0;
     const dy = facing === 'up' ? -1 : facing === 'down' ? 1 : 0;
 
@@ -153,7 +161,7 @@ export class CombatSystem {
     let currX = player.x;
     let currY = player.y;
 
-    for (let i = 1; i <= CONFIG.MAGICIAN_BEAM_RANGE; i++) {
+    for (let i = 1; i <= beamRange; i++) {
       currX += dx;
       currY += dy;
       if (!gridMap.isInBounds(currX, currY)) break;
@@ -171,7 +179,8 @@ export class CombatSystem {
     for (const monster of monsters) {
       const hit = beamTiles.some(t => t.x === monster.x && t.y === monster.y);
       if (hit) {
-        const damage = CombatSystem.randomBetween(CONFIG.MAGICIAN_BEAM_DAMAGE_MIN, CONFIG.MAGICIAN_BEAM_DAMAGE_MAX);
+        const baseDmg = CombatSystem.randomBetween(CONFIG.MAGICIAN_BEAM_DAMAGE_MIN, CONFIG.MAGICIAN_BEAM_DAMAGE_MAX);
+        const damage = Math.round(baseDmg * mult);
         monster.hp -= damage;
         totalDamage += damage;
         hits++;
@@ -224,8 +233,11 @@ export class CombatSystem {
       return { success: false, message: 'Bow Shot is on cooldown.' };
     }
 
+    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const bonusRng = player.skillBoosts?.bonusRange || 0;
+
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
-    if (dist > CONFIG.ARCHER_BOW_RANGE + 0.5) {
+    if (dist > (CONFIG.ARCHER_BOW_RANGE + bonusRng) + 0.5) {
       return { success: false, message: 'Target is out of range for Bow Shot.' };
     }
 
@@ -238,7 +250,8 @@ export class CombatSystem {
     }
 
     player.cooldowns['bow_shot'] = CONFIG.ARCHER_BOW_COOLDOWN_SEC;
-    const damage = CombatSystem.randomBetween(CONFIG.ARCHER_BOW_DAMAGE_MIN, CONFIG.ARCHER_BOW_DAMAGE_MAX);
+    const baseDmg = CombatSystem.randomBetween(CONFIG.ARCHER_BOW_DAMAGE_MIN, CONFIG.ARCHER_BOW_DAMAGE_MAX);
+    const damage = Math.round(baseDmg * mult);
     target.hp -= damage;
 
     const projectile: Projectile = {
@@ -284,8 +297,11 @@ export class CombatSystem {
       return { success: false, message: 'Power Shot is on cooldown.' };
     }
 
+    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const bonusRng = player.skillBoosts?.bonusRange || 0;
+
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
-    if (dist > CONFIG.ARCHER_POWER_SHOT_RANGE + 0.5) {
+    if (dist > (CONFIG.ARCHER_POWER_SHOT_RANGE + bonusRng) + 0.5) {
       return { success: false, message: 'Target is out of range for Power Shot.' };
     }
 
@@ -298,7 +314,8 @@ export class CombatSystem {
     }
 
     player.cooldowns['power_shot'] = CONFIG.ARCHER_POWER_SHOT_COOLDOWN_SEC;
-    const damage = CombatSystem.randomBetween(CONFIG.ARCHER_POWER_SHOT_DAMAGE_MIN, CONFIG.ARCHER_POWER_SHOT_DAMAGE_MAX);
+    const baseDmg = CombatSystem.randomBetween(CONFIG.ARCHER_POWER_SHOT_DAMAGE_MIN, CONFIG.ARCHER_POWER_SHOT_DAMAGE_MAX);
+    const damage = Math.round(baseDmg * mult);
     target.hp -= damage;
 
     const projectile: Projectile = {

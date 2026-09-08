@@ -39,6 +39,9 @@ export interface CharacterResponse {
   max_hp: number;
   mana: number;
   max_mana: number;
+  level?: number;
+  xp?: number;
+  xp_to_next_level?: number;
   current_floor: number;
   position: PositionDTO;
   paperdoll: PaperdollDTO;
@@ -52,6 +55,9 @@ export interface CharacterSaveRequest {
   max_hp: number;
   mana: number;
   max_mana: number;
+  level?: number;
+  xp?: number;
+  xp_to_next_level?: number;
   current_floor: number;
   position: PositionDTO;
   paperdoll: PaperdollDTO;
