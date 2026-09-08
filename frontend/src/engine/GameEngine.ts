@@ -50,6 +50,9 @@ export class GameEngine {
   // Key state tracking for movement (discrete 10 Hz steps)
   private keysDown = new Set<string>();
 
+  // Passive regen timer
+  private regenAccumulator = 0;
+
   constructor(
     canvas: HTMLCanvasElement,
     paperdollContainerId: string,
@@ -265,6 +268,19 @@ export class GameEngine {
     // 2. Decrement cooldowns and spell timers
     CombatSystem.decrementCooldowns(this.player, deltaSec);
     CombatSystem.decrementSpellTimers(this.player, deltaSec);
+
+    // Passive regeneration (Magician +2 MP / 5s; Archer +2 HP / 5s)
+    this.regenAccumulator += deltaSec;
+    if (this.regenAccumulator >= 5.0) {
+      this.regenAccumulator -= 5.0;
+      if (this.player.vocation === 'magician' && this.player.mana < this.player.max_mana) {
+        this.player.mana = Math.min(this.player.max_mana, this.player.mana + 2);
+        this.addFloatingText('+2 MP', this.player.x, this.player.y, '#3b82f6');
+      } else if (this.player.vocation === 'archer' && this.player.hp < this.player.max_hp) {
+        this.player.hp = Math.min(this.player.max_hp, this.player.hp + 2);
+        this.addFloatingText('+2 HP', this.player.x, this.player.y, '#22c55e');
+      }
+    }
 
     // 3. Update lighting
     LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
@@ -611,18 +627,36 @@ export class GameEngine {
       this.keysDown.add(e.code);
 
       // Hotkeys
-      if (e.code === 'Digit1') {
+      if (e.code === 'Digit1' || e.code === 'Numpad1') {
         e.preventDefault();
         const abilities = this.hotbarUI.getAbilitiesForVocation(this.player);
         if (abilities[0]) this.handleTriggerAbility(abilities[0].id);
-      } else if (e.code === 'Digit2') {
+      } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
         e.preventDefault();
         const abilities = this.hotbarUI.getAbilitiesForVocation(this.player);
         if (abilities[1]) this.handleTriggerAbility(abilities[1].id);
-      } else if (e.code === 'Digit3') {
+      } else if (e.code === 'Digit3' || e.code === 'Numpad3') {
         e.preventDefault();
         const abilities = this.hotbarUI.getAbilitiesForVocation(this.player);
         if (abilities[2]) this.handleTriggerAbility(abilities[2].id);
+      } else if (e.code === 'Digit4' || e.code === 'Numpad4') {
+        e.preventDefault();
+        this.handleUseBackpackItem(0);
+      } else if (e.code === 'Digit5' || e.code === 'Numpad5') {
+        e.preventDefault();
+        this.handleUseBackpackItem(1);
+      } else if (e.code === 'Digit6' || e.code === 'Numpad6') {
+        e.preventDefault();
+        this.handleUseBackpackItem(2);
+      } else if (e.code === 'Digit7' || e.code === 'Numpad7') {
+        e.preventDefault();
+        this.handleUseBackpackItem(3);
+      } else if (e.code === 'Digit8' || e.code === 'Numpad8') {
+        e.preventDefault();
+        this.handleUseBackpackItem(4);
+      } else if (e.code === 'Digit9' || e.code === 'Numpad9') {
+        e.preventDefault();
+        this.handleUseBackpackItem(5);
       } else if (e.code === 'KeyE' || e.code === 'Space') {
         e.preventDefault();
         this.handlePickUp();

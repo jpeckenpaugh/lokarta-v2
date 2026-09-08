@@ -196,8 +196,13 @@
   top: 2px;
   left: 4px;
   font-size: 0.65rem;
-  color: #475569;
+  color: #64748b;
   font-family: var(--font-mono);
+}
+
+.backpack-slot .slot-hotkey {
+  color: var(--gold-accent);
+  font-weight: bold;
 }
 
 .backpack-slot .slot-content {

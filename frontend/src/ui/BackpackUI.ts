@@ -31,13 +31,14 @@ export class BackpackUI {
     for (let i = 0; i < 6; i++) {
       const item = backpack[i] || null;
       const isOccupied = item !== null;
+      const hotkey = i + 4;
       const tooltip = isOccupied
-        ? `${item.name} (${item.type})${item.quantity > 1 ? ` x${item.quantity}` : ''}${item.stat_bonus > 0 ? ` [Stat: +${item.stat_bonus}]` : ''} - Click to Use/Equip, [Drop] to place on ground`
-        : `Slot ${i + 1} (Empty)`;
+        ? `${item.name} (${item.type})${item.quantity > 1 ? ` x${item.quantity}` : ''}${item.stat_bonus > 0 ? ` [Stat: +${item.stat_bonus}]` : ''} [Key ${hotkey}] - Click or press ${hotkey} to Use/Equip, [Drop] to place on ground`
+        : `Slot ${i + 1} [Key ${hotkey}] (Empty)`;
 
       html += `
         <div class="backpack-slot ${isOccupied ? 'occupied' : 'empty'}" data-index="${i}" title="${tooltip}">
-          <div class="slot-num">${i + 1}</div>
+          <div class="slot-num">${i + 1} <span class="slot-hotkey">[${hotkey}]</span></div>
           <div class="slot-content">
             ${isOccupied ? this.renderItemIcon(item) : ''}
           </div>

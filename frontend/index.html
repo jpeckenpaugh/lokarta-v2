@@ -24,14 +24,19 @@
 
     <!-- Main Game Frame -->
     <div class="main-frame">
-      <!-- Left / Center: Viewport Canvas -->
-      <div class="viewport-panel">
-        <div class="canvas-wrapper">
-          <canvas id="game-canvas"></canvas>
+      <!-- Left / Center Column: Viewport Canvas + Bottom Combat Log -->
+      <div class="center-stage">
+        <div class="viewport-panel">
+          <div class="canvas-wrapper">
+            <canvas id="game-canvas"></canvas>
+          </div>
         </div>
+
+        <!-- Bottom: Scrolling Combat Log (scoped to center column) -->
+        <footer id="combat-log-container" class="hud-panel combat-log-panel"></footer>
       </div>
 
-      <!-- Right: Modular Side HUD Panels -->
+      <!-- Right: Full-height Modular Side HUD Panels -->
       <aside class="sidebar-hud">
         <!-- Status Meters (HP / MP) -->
         <section id="status-bars-container" class="hud-panel status-panel"></section>
@@ -46,9 +51,6 @@
         <section id="hotbar-container" class="hud-panel hotbar-panel"></section>
       </aside>
     </div>
-
-    <!-- Bottom: Scrolling Combat Log -->
-    <footer id="combat-log-container" class="hud-panel combat-log-panel"></footer>
 
     <!-- Fullscreen Modal Overlay (Character Select, Victory, Defeat) -->
     <div id="modal-overlay" class="modal-overlay hidden"></div>
