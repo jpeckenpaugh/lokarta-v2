@@ -10,6 +10,16 @@ export interface InventoryResult {
 }
 
 export class InventorySystem {
+  public static getMaxStack(itemId: string): number {
+    if (itemId === 'health_potion' || itemId === 'mana_potion' || itemId === 'torch') {
+      return 9;
+    }
+    if (itemId === 'arrows') {
+      return 99;
+    }
+    return 1;
+  }
+
   public static pickUpItem(player: PlayerEntity, gridMap: GridMap): InventoryResult {
     const tileItems = gridMap.getItems(player.x, player.y);
     if (tileItems.length === 0) {
@@ -17,36 +27,56 @@ export class InventorySystem {
     }
 
     const groundItem = tileItems[tileItems.length - 1]; // top item
+    const maxStack = InventorySystem.getMaxStack(groundItem.item_id);
 
-    // If it's arrows, check if we can merge into existing arrows in backpack
-    if (groundItem.item_id === 'arrows') {
+    let totalPickedUp = 0;
+
+    // 1. If stackable, try merging into existing backpack slots
+    if (maxStack > 1) {
       for (let i = 0; i < player.backpack.length; i++) {
         const slotItem = player.backpack[i];
-        if (slotItem && slotItem.item_id === 'arrows') {
-          slotItem.quantity += groundItem.quantity;
-          gridMap.popTopItem(player.x, player.y);
-          return {
-            success: true,
-            message: `Added ${groundItem.quantity} arrows to quiver (total ${slotItem.quantity}).`,
-            item: slotItem,
-          };
+        if (slotItem && slotItem.item_id === groundItem.item_id && slotItem.quantity < maxStack) {
+          const space = maxStack - slotItem.quantity;
+          const toAdd = Math.min(space, groundItem.quantity);
+          slotItem.quantity += toAdd;
+          groundItem.quantity -= toAdd;
+          totalPickedUp += toAdd;
+
+          if (groundItem.quantity <= 0) {
+            break;
+          }
         }
       }
     }
 
-    // Find first empty backpack slot
-    const emptyIndex = player.backpack.findIndex(slot => slot === null);
-    if (emptyIndex === -1) {
-      return { success: false, message: 'Backpack is full (6/6 slots)!' };
+    // 2. If remainder still on ground, try placing into empty backpack slots
+    while (groundItem.quantity > 0) {
+      const emptyIndex = player.backpack.findIndex(slot => slot === null);
+      if (emptyIndex === -1) {
+        break; // No more backpack slots
+      }
+
+      const toMove = Math.min(maxStack, groundItem.quantity);
+      groundItem.quantity -= toMove;
+      totalPickedUp += toMove;
+
+      player.backpack[emptyIndex] = {
+        ...groundItem,
+        quantity: toMove,
+      };
     }
 
-    // Move item to backpack
-    gridMap.popTopItem(player.x, player.y);
-    player.backpack[emptyIndex] = groundItem;
+    if (groundItem.quantity <= 0) {
+      gridMap.popTopItem(player.x, player.y);
+    }
+
+    if (totalPickedUp === 0) {
+      return { success: false, message: 'Backpack is full!' };
+    }
 
     return {
       success: true,
-      message: `Picked up ${groundItem.name}.`,
+      message: `Picked up ${groundItem.name}${totalPickedUp > 1 ? ` (x${totalPickedUp})` : ''}.`,
       item: groundItem,
     };
   }
@@ -84,7 +114,7 @@ export class InventorySystem {
     let targetSlot: keyof PaperdollSlots | null = null;
     if (item.type === 'weapon') {
       targetSlot = 'right_hand';
-    } else if (item.type === 'offhand') {
+    } else if (item.type === 'offhand' || item.item_id === 'torch') {
       targetSlot = 'left_hand';
     } else if (item.type === 'armor') {
       targetSlot = 'armor';
@@ -93,8 +123,30 @@ export class InventorySystem {
     }
 
     const currentlyEquipped = player.paperdoll[targetSlot];
-    player.paperdoll[targetSlot] = item;
-    player.backpack[backpackSlotIndex] = currentlyEquipped; // swap or null
+
+    // If equipping 1 from a stack > 1 (e.g. torches)
+    if (item.quantity > 1) {
+      item.quantity -= 1;
+      player.paperdoll[targetSlot] = {
+        ...item,
+        quantity: 1,
+      };
+      if (currentlyEquipped) {
+        // Find empty slot for swapped item
+        const emptyIdx = player.backpack.findIndex(s => s === null);
+        if (emptyIdx !== -1) {
+          player.backpack[emptyIdx] = currentlyEquipped;
+        } else {
+          // If no empty slot, put back
+          item.quantity += 1;
+          player.paperdoll[targetSlot] = currentlyEquipped;
+          return { success: false, message: 'Cannot swap: Backpack is full!' };
+        }
+      }
+    } else {
+      player.paperdoll[targetSlot] = item;
+      player.backpack[backpackSlotIndex] = currentlyEquipped; // swap or null
+    }
 
     const equipMsg = item.item_id === 'torch'
       ? `Lit and equipped Wooden Torch in ${targetSlot.replace('_', ' ')}! Illuminating surrounding area.`
@@ -103,7 +155,7 @@ export class InventorySystem {
     return {
       success: true,
       message: equipMsg,
-      item,
+      item: player.paperdoll[targetSlot] || item,
     };
   }
 
@@ -111,6 +163,26 @@ export class InventorySystem {
     const item = player.paperdoll[slotName];
     if (!item) {
       return { success: false, message: `No item equipped in ${slotName.replace('_', ' ')}.` };
+    }
+
+    const maxStack = InventorySystem.getMaxStack(item.item_id);
+
+    // If stackable, try merging into existing stack in backpack
+    if (maxStack > 1) {
+      for (let i = 0; i < player.backpack.length; i++) {
+        const slotItem = player.backpack[i];
+        if (slotItem && slotItem.item_id === item.item_id && slotItem.quantity < maxStack) {
+          const space = maxStack - slotItem.quantity;
+          const toAdd = Math.min(space, item.quantity);
+          slotItem.quantity += toAdd;
+          player.paperdoll[slotName] = null;
+          return {
+            success: true,
+            message: `Unequipped ${item.name} and merged into backpack stack (total: ${slotItem.quantity}).`,
+            item: slotItem,
+          };
+        }
+      }
     }
 
     const emptyIndex = player.backpack.findIndex(slot => slot === null);

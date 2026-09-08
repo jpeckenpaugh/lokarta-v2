@@ -392,11 +392,10 @@ export class GameEngine {
           this.player.x = targetX;
           this.player.y = targetY;
 
-          // Check if entered tile has ground loot
+          // Auto-pickup items on the entered tile
           const items = this.gridMap.getItems(this.player.x, this.player.y);
           if (items.length > 0) {
-            const topItem = items[items.length - 1];
-            this.combatLogUI.log(`You see ${topItem.name}${items.length > 1 ? ` (+${items.length - 1} more items)` : ''} on the floor. Press [E] to pick up.`, 'loot');
+            this.handlePickUp();
           }
         }
       }

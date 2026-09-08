@@ -339,5 +339,63 @@ describe('Frontend Engine Test Suite', () => {
       expect(player.mana).toBe(80);
       expect(gridMap.getItems(player.x, player.y).length).toBe(0);
     });
+
+    it('stacks potions and torches up to 9 per slot', () => {
+      // Add health potion x5
+      player.backpack[0] = {
+        item_id: 'health_potion',
+        name: 'Health Potion',
+        type: 'consumable',
+        quantity: 5,
+        stat_bonus: 30,
+      };
+
+      // Pick up health potion x3 -> should merge into slot 0 with quantity 8
+      gridMap.addItem(player.x, player.y, {
+        item_id: 'health_potion',
+        name: 'Health Potion',
+        type: 'consumable',
+        quantity: 3,
+        stat_bonus: 30,
+      });
+      const res1 = InventorySystem.pickUpItem(player, gridMap);
+      expect(res1.success).toBe(true);
+      expect(player.backpack[0]?.quantity).toBe(8);
+      expect(player.backpack[1]).toBeNull();
+
+      // Pick up health potion x3 -> should cap slot 0 at 9 and put remainder 2 in slot 1
+      gridMap.addItem(player.x, player.y, {
+        item_id: 'health_potion',
+        name: 'Health Potion',
+        type: 'consumable',
+        quantity: 3,
+        stat_bonus: 30,
+      });
+      const res2 = InventorySystem.pickUpItem(player, gridMap);
+      expect(res2.success).toBe(true);
+      expect(player.backpack[0]?.quantity).toBe(9);
+      expect(player.backpack[1]?.quantity).toBe(2);
+    });
+
+    it('equips 1 torch from a stack and merges torch on unequip', () => {
+      player.backpack[0] = {
+        item_id: 'torch',
+        name: 'Wooden Torch',
+        type: 'offhand',
+        quantity: 3,
+        stat_bonus: 5,
+      };
+
+      const equipRes = InventorySystem.equipItem(player, 0);
+      expect(equipRes.success).toBe(true);
+      expect(player.paperdoll.left_hand?.item_id).toBe('torch');
+      expect(player.paperdoll.left_hand?.quantity).toBe(1);
+      expect(player.backpack[0]?.quantity).toBe(2);
+
+      const unequipRes = InventorySystem.unequipItem(player, 'left_hand');
+      expect(unequipRes.success).toBe(true);
+      expect(player.paperdoll.left_hand).toBeNull();
+      expect(player.backpack[0]?.quantity).toBe(3);
+    });
   });
 });
