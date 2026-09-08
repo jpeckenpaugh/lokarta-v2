@@ -1,12 +1,45 @@
 import { GameEngine } from './engine/GameEngine';
 import { CharacterSelect } from './ui/CharacterSelect';
 import { VocationType } from './types/api';
+import { soundFX } from './audio/AudioSystem';
 
 window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
   if (!canvas) {
     console.error('Game canvas element #game-canvas not found.');
     return;
+  }
+
+  // Audio unlock listener on first user interaction
+  const unlockAudio = () => {
+    soundFX.init();
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('keydown', unlockAudio);
+  };
+  window.addEventListener('click', unlockAudio);
+  window.addEventListener('keydown', unlockAudio);
+
+  // Audio Mute/Unmute Toggle Button
+  const audioBtn = document.getElementById('audio-toggle-btn');
+  if (audioBtn) {
+    const updateAudioBtnUI = () => {
+      const isMuted = soundFX.getMuted();
+      audioBtn.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
+      if (isMuted) {
+        audioBtn.classList.add('muted');
+      } else {
+        audioBtn.classList.remove('muted');
+      }
+    };
+    updateAudioBtnUI();
+
+    audioBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundFX.init();
+      soundFX.toggleMute();
+      soundFX.playClick();
+      updateAudioBtnUI();
+    });
   }
 
   // Adjust canvas buffer size based on container
@@ -32,6 +65,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Show Character Selection Modal
   const charSelect = new CharacterSelect('modal-overlay', async (vocation: VocationType) => {
+    soundFX.init();
+    soundFX.playClick();
     await engine.initializeSession(vocation);
   });
 

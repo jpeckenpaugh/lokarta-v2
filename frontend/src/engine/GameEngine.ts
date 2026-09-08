@@ -21,6 +21,7 @@ import { LightEmitter } from '../types/world';
 import { PaperdollSlots } from '../types/item';
 import { VocationType, CharacterResponse, DungeonFloorResponse } from '../types/api';
 import { CONFIG } from '../config';
+import { soundFX } from '../audio/AudioSystem';
 
 export class GameEngine {
   public gridMap: GridMap;
@@ -295,6 +296,8 @@ export class GameEngine {
         this.projectiles.push(...res.projectiles);
       }
       if (res.damageToPlayer && res.damageToPlayer > 0) {
+        soundFX.playMonsterAttack();
+        soundFX.playPlayerHurt();
         this.addFloatingText(`-${res.damageToPlayer}`, this.player.x, this.player.y, '#ef4444');
       }
     }
@@ -391,6 +394,7 @@ export class GameEngine {
           // Move discrete step
           this.player.x = targetX;
           this.player.y = targetY;
+          soundFX.playFootstep();
 
           // Auto-pickup items on the entered tile
           const items = this.gridMap.getItems(this.player.x, this.player.y);
@@ -413,11 +417,13 @@ export class GameEngine {
         this.combatLogUI.log('No visible enemy in range for Wand Spark (click enemy to target).', 'warning');
         return;
       }
+      soundFX.playWandSpark();
       const res = CombatSystem.executeWandSpark(this.player, target, this.gridMap);
       this.handleCombatResult(res, target.x, target.y);
     } else if (abilityId === 'light') {
       const res = CombatSystem.executeLightSpell(this.player);
       if (res.success) {
+        soundFX.playLightSpell();
         this.combatLogUI.log(res.message!, 'spell');
         this.addFloatingText('Light Aura!', this.player.x, this.player.y, '#ffd700');
         LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
@@ -427,6 +433,7 @@ export class GameEngine {
     } else if (abilityId === 'energy_beam') {
       const res = CombatSystem.executeEnergyBeam(this.player, this.player.facing, this.gridMap, this.monsters);
       if (res.success) {
+        soundFX.playEnergyBeam();
         this.handleCombatResult(res, this.player.x, this.player.y);
       } else {
         this.combatLogUI.log(res.message!, 'warning');
@@ -437,6 +444,7 @@ export class GameEngine {
         this.combatLogUI.log('No visible enemy in range for Bow Shot (click enemy to target).', 'warning');
         return;
       }
+      soundFX.playBowShot();
       const res = CombatSystem.executeBowShot(this.player, target, this.gridMap);
       this.handleCombatResult(res, target.x, target.y);
     } else if (abilityId === 'power_shot') {
@@ -445,6 +453,7 @@ export class GameEngine {
         this.combatLogUI.log('No visible enemy in range for Power Shot (click enemy to target).', 'warning');
         return;
       }
+      soundFX.playPowerShot();
       const res = CombatSystem.executePowerShot(this.player, target, this.gridMap);
       this.handleCombatResult(res, target.x, target.y);
     }
@@ -494,6 +503,7 @@ export class GameEngine {
     }
 
     if (res.damageDealt) {
+      soundFX.playHit();
       this.addFloatingText(`-${res.damageDealt}`, targetX, targetY, '#ffdd44');
     }
 
@@ -503,6 +513,7 @@ export class GameEngine {
 
     // Handle defeated monster & loot drop
     if (res.defeatedMonsterId) {
+      soundFX.playMonsterDeath();
       const index = this.monsters.findIndex(m => m.id === res.defeatedMonsterId);
       if (index !== -1) {
         const deadMonster = this.monsters[index];
@@ -525,6 +536,7 @@ export class GameEngine {
   public async handlePickUp(): Promise<void> {
     const res = InventorySystem.pickUpItem(this.player, this.gridMap);
     if (res.success) {
+      soundFX.playItemPickup();
       this.combatLogUI.log(res.message, 'loot');
       this.addFloatingText(`+${res.item?.name}`, this.player.x, this.player.y, '#22c55e');
       this.updateHUD();
@@ -538,6 +550,7 @@ export class GameEngine {
   public async handleDropBackpackItem(slotIndex: number): Promise<void> {
     const res = InventorySystem.dropItem(this.player, slotIndex, this.gridMap);
     if (res.success) {
+      soundFX.playUnequip();
       this.combatLogUI.log(res.message, 'system');
       this.updateHUD();
       await this.persistSave();
@@ -551,7 +564,10 @@ export class GameEngine {
     if (res.success) {
       this.combatLogUI.log(res.message, 'loot');
       if (res.item?.item_id.includes('potion')) {
+        soundFX.playPotionDrink();
         this.addFloatingText(`Used ${res.item.name}!`, this.player.x, this.player.y, '#38bdf8');
+      } else {
+        soundFX.playEquip();
       }
       LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
       this.updateHUD();
@@ -564,6 +580,7 @@ export class GameEngine {
   public async handleUnequip(slotName: keyof PaperdollSlots): Promise<void> {
     const res = InventorySystem.unequipItem(this.player, slotName);
     if (res.success) {
+      soundFX.playUnequip();
       this.combatLogUI.log(res.message, 'system');
       LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
       this.updateHUD();
@@ -577,7 +594,12 @@ export class GameEngine {
     const res = InventorySystem.useGroundItem(this.player, this.gridMap);
     if (res.success) {
       this.combatLogUI.log(res.message, 'loot');
-      this.addFloatingText(`Used ${res.item?.name}!`, this.player.x, this.player.y, '#38bdf8');
+      if (res.item?.item_id.includes('potion')) {
+        soundFX.playPotionDrink();
+        this.addFloatingText(`Used ${res.item.name}!`, this.player.x, this.player.y, '#38bdf8');
+      } else {
+        soundFX.playEquip();
+      }
       this.updateHUD();
       await this.persistSave();
     } else {
@@ -596,6 +618,8 @@ export class GameEngine {
 
   private async handleFloorClear(): Promise<void> {
     this.isFloorCleared = true;
+    soundFX.playStairs();
+    soundFX.playVictory();
     this.combatLogUI.log('You stepped onto the glowing stairway! Floor 1 Cleared!', 'victory');
     this.addFloatingText('FLOOR CLEARED!', this.player.x, this.player.y, '#38bdf8');
 
@@ -708,6 +732,7 @@ export class GameEngine {
     `;
 
     document.getElementById('btn-restart')?.addEventListener('click', () => {
+      soundFX.playClick();
       modal.classList.add('hidden');
       modal.innerHTML = '';
       window.location.reload();
@@ -717,6 +742,7 @@ export class GameEngine {
   private showGameOverModal(): void {
     const modal = document.getElementById('modal-overlay');
     if (!modal) return;
+    soundFX.playDefeat();
     modal.classList.remove('hidden');
     modal.innerHTML = `
       <div class="result-modal defeat-modal">
@@ -728,6 +754,7 @@ export class GameEngine {
     `;
 
     document.getElementById('btn-retry')?.addEventListener('click', () => {
+      soundFX.playClick();
       modal.classList.add('hidden');
       modal.innerHTML = '';
       window.location.reload();

@@ -94,6 +94,23 @@ body {
   border: 1px solid var(--border-color);
 }
 
+.audio-btn {
+  cursor: pointer;
+  background-color: #1a1e2e;
+  color: var(--gold-accent);
+  transition: all 0.2s ease;
+}
+
+.audio-btn:hover {
+  background-color: #2a3148;
+  border-color: var(--gold-accent);
+}
+
+.audio-btn.muted {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
 /* Main Frame (Center Stage + Sidebar) */
 .main-frame {
   display: flex;

@@ -398,4 +398,41 @@ describe('Frontend Engine Test Suite', () => {
       expect(player.backpack[0]?.quantity).toBe(3);
     });
   });
+
+  describe('AudioSystem & Sound Effects', () => {
+    it('initializes safely and toggles mute state without errors', async () => {
+      const { soundFX, AudioSystem } = await import('../src/audio/AudioSystem');
+      expect(soundFX).toBeDefined();
+      expect(AudioSystem.getInstance()).toBe(soundFX);
+
+      const initialMute = soundFX.getMuted();
+      const toggledMute = soundFX.toggleMute();
+      expect(toggledMute).toBe(!initialMute);
+      expect(soundFX.getMuted()).toBe(!initialMute);
+
+      // Restore mute state
+      soundFX.toggleMute();
+      expect(soundFX.getMuted()).toBe(initialMute);
+
+      // Verify safe execution of all sound triggers in headless environment
+      expect(() => soundFX.playFootstep()).not.toThrow();
+      expect(() => soundFX.playWandSpark()).not.toThrow();
+      expect(() => soundFX.playLightSpell()).not.toThrow();
+      expect(() => soundFX.playEnergyBeam()).not.toThrow();
+      expect(() => soundFX.playBowShot()).not.toThrow();
+      expect(() => soundFX.playPowerShot()).not.toThrow();
+      expect(() => soundFX.playHit()).not.toThrow();
+      expect(() => soundFX.playMonsterAttack()).not.toThrow();
+      expect(() => soundFX.playMonsterDeath()).not.toThrow();
+      expect(() => soundFX.playPlayerHurt()).not.toThrow();
+      expect(() => soundFX.playItemPickup()).not.toThrow();
+      expect(() => soundFX.playPotionDrink()).not.toThrow();
+      expect(() => soundFX.playEquip()).not.toThrow();
+      expect(() => soundFX.playUnequip()).not.toThrow();
+      expect(() => soundFX.playStairs()).not.toThrow();
+      expect(() => soundFX.playVictory()).not.toThrow();
+      expect(() => soundFX.playDefeat()).not.toThrow();
+      expect(() => soundFX.playClick()).not.toThrow();
+    });
+  });
 });
