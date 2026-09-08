@@ -1,0 +1,1 @@
+A simple Sales / Inventory Tracker Web App for selling items second hand.  Use frameworks, such as Bootstrap for the frontend and FastAPI+SQLite for the backend.  Start with a small set of items and platforms as seed data.  The app lets the user track items they buy to resell, list each item on a platform, and record a sale against an item so they can see profit or loss.

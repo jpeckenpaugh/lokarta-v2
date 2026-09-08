@@ -1,0 +1,1 @@
+A simple Client / Project Tracker Web App for a small business or freelancer.  Use frameworks, such as Bootstrap for the frontend and FastAPI+SQLite for the backend.  Start with a small set of clients and projects as seed data.  The app lets the user track their clients and the projects attached to each client, associate contacts, and record time spent against projects.
