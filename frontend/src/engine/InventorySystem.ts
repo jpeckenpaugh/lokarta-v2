@@ -96,9 +96,13 @@ export class InventorySystem {
     player.paperdoll[targetSlot] = item;
     player.backpack[backpackSlotIndex] = currentlyEquipped; // swap or null
 
+    const equipMsg = item.item_id === 'torch'
+      ? `Lit and equipped Wooden Torch in ${targetSlot.replace('_', ' ')}! Illuminating surrounding area.`
+      : `Equipped ${item.name} in ${targetSlot.replace('_', ' ')}.`;
+
     return {
       success: true,
-      message: `Equipped ${item.name} in ${targetSlot.replace('_', ' ')}.`,
+      message: equipMsg,
       item,
     };
   }
@@ -144,8 +148,8 @@ export class InventorySystem {
       });
     }
 
-    // If equipment, try to equip
-    if (item.type === 'weapon' || item.type === 'offhand' || item.type === 'armor') {
+    // If equipment or torch, equip
+    if (item.type === 'weapon' || item.type === 'offhand' || item.type === 'armor' || item.item_id === 'torch') {
       return InventorySystem.equipItem(player, slotIndex);
     }
 
@@ -174,7 +178,22 @@ export class InventorySystem {
       });
     }
 
-    return { success: false, message: `Cannot use ${item.name} directly from ground. Pick it up first.` };
+    // If torch on ground, direct equip
+    if (item.item_id === 'torch') {
+      const prevLeft = player.paperdoll.left_hand;
+      player.paperdoll.left_hand = item;
+      gridMap.removeItem(player.x, player.y, idx);
+      if (prevLeft) {
+        gridMap.addItem(player.x, player.y, prevLeft);
+      }
+      return {
+        success: true,
+        message: 'Lit and equipped Wooden Torch from floor! (6 tiles light radius).',
+        item,
+      };
+    }
+
+    return { success: false, message: `Cannot use ${item.name} directly from ground. Pick it up first [E].` };
   }
 
   private static consumeItem(player: PlayerEntity, item: Item, removeCallback: () => void): InventoryResult {

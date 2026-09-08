@@ -27,13 +27,23 @@ export class EntityAI {
   ): AIActionResult[] {
     const results: AIActionResult[] = [];
 
-    // Decrement monster cooldowns
     for (const monster of monsters) {
+      if (monster.hp <= 0) continue;
+
+      // Decrement monster cooldowns
       if (monster.attackCooldown > 0) {
         monster.attackCooldown = Math.max(0, monster.attackCooldown - deltaSec);
       }
+      monster.moveCooldown = Math.max(0, (monster.moveCooldown ?? 0) - deltaSec);
 
-      if (!monster.isAggroed) continue;
+      if (!monster.isAggroed) {
+        // Occasional slow idle wander in the dark (every ~3-5 seconds)
+        if ((monster.moveCooldown ?? 0) <= 0) {
+          monster.moveCooldown = 3.0 + Math.random() * 2.5;
+          EntityAI.idleWander(monster, gridMap, monsters);
+        }
+        continue;
+      }
 
       if (monster.type === 'crypt_skeleton') {
         const action = EntityAI.updateSkeleton(monster, player, gridMap, monsters);
@@ -47,6 +57,25 @@ export class EntityAI {
     return results;
   }
 
+  private static idleWander(monster: MonsterEntity, gridMap: GridMap, allMonsters: MonsterEntity[]): void {
+    if (Math.random() < 0.4) return; // 40% chance to just stand still
+    const directions = [
+      { x: 0, y: -1, dir: 'up' as Direction },
+      { x: 0, y: 1, dir: 'down' as Direction },
+      { x: -1, y: 0, dir: 'left' as Direction },
+      { x: 1, y: 0, dir: 'right' as Direction },
+    ];
+    const choice = directions[Math.floor(Math.random() * directions.length)];
+    const nx = monster.x + choice.x;
+    const ny = monster.y + choice.y;
+
+    if (gridMap.isWalkable(nx, ny) && !allMonsters.some(m => m.id !== monster.id && m.x === nx && m.y === ny)) {
+      monster.facing = choice.dir;
+      monster.x = nx;
+      monster.y = ny;
+    }
+  }
+
   private static updateSkeleton(
     skeleton: MonsterEntity,
     player: PlayerEntity,
@@ -57,6 +86,7 @@ export class EntityAI {
 
     // If adjacent (cardinal dist == 1)
     if (distManhattan === 1) {
+      skeleton.facing = EntityAI.getFacing(skeleton.x, skeleton.y, player.x, player.y);
       if (skeleton.attackCooldown <= 0) {
         skeleton.attackCooldown = skeleton.attackCadence;
         const damage = Math.floor(Math.random() * (CONFIG.SKELETON_DAMAGE_MAX - CONFIG.SKELETON_DAMAGE_MIN + 1)) + CONFIG.SKELETON_DAMAGE_MIN;
@@ -69,18 +99,23 @@ export class EntityAI {
       return null;
     }
 
-    // Otherwise, move towards player using A*
-    const nextStep = EntityAI.findNextStepAStar(
-      { x: skeleton.x, y: skeleton.y },
-      { x: player.x, y: player.y },
-      gridMap,
-      allMonsters.filter(m => m.id !== skeleton.id)
-    );
+    // Otherwise, move towards player only when moveCooldown has elapsed
+    if ((skeleton.moveCooldown ?? 0) <= 0) {
+      skeleton.moveCooldown = (skeleton.moveCadence || CONFIG.SKELETON_MOVE_CADENCE_SEC) + (Math.random() * 0.2 - 0.1);
 
-    if (nextStep && (nextStep.x !== player.x || nextStep.y !== player.y)) {
-      skeleton.facing = EntityAI.getFacing(skeleton.x, skeleton.y, nextStep.x, nextStep.y);
-      skeleton.x = nextStep.x;
-      skeleton.y = nextStep.y;
+      // Pathfind towards player
+      const nextStep = EntityAI.findNextStepAStar(
+        { x: skeleton.x, y: skeleton.y },
+        { x: player.x, y: player.y },
+        gridMap,
+        allMonsters.filter(m => m.id !== skeleton.id && m.hp > 0)
+      );
+
+      if (nextStep && (nextStep.x !== player.x || nextStep.y !== player.y)) {
+        skeleton.facing = EntityAI.getFacing(skeleton.x, skeleton.y, nextStep.x, nextStep.y);
+        skeleton.x = nextStep.x;
+        skeleton.y = nextStep.y;
+      }
     }
 
     return null;
@@ -95,31 +130,10 @@ export class EntityAI {
     const dist = Math.hypot(cultist.x - player.x, cultist.y - player.y);
     const hasLOS = LightingSystem.hasLineOfSight(gridMap, cultist.x, cultist.y, player.x, player.y);
 
-    // 1. If distance < 3, retreat to open tile
-    if (dist < CONFIG.CULTIST_STANDOFF_MIN) {
-      const retreatStep = EntityAI.findRetreatStep(cultist, player, gridMap, allMonsters);
-      if (retreatStep) {
-        cultist.facing = EntityAI.getFacing(cultist.x, cultist.y, retreatStep.x, retreatStep.y);
-        cultist.x = retreatStep.x;
-        cultist.y = retreatStep.y;
-      }
-    }
-    // 2. If distance > 4, advance towards sweet spot
-    else if (dist > CONFIG.CULTIST_STANDOFF_MAX) {
-      const nextStep = EntityAI.findNextStepAStar(
-        { x: cultist.x, y: cultist.y },
-        { x: player.x, y: player.y },
-        gridMap,
-        allMonsters.filter(m => m.id !== cultist.id)
-      );
-      if (nextStep && (nextStep.x !== player.x || nextStep.y !== player.y)) {
-        cultist.facing = EntityAI.getFacing(cultist.x, cultist.y, nextStep.x, nextStep.y);
-        cultist.x = nextStep.x;
-        cultist.y = nextStep.y;
-      }
-    }
+    // Face player
+    cultist.facing = EntityAI.getFacing(cultist.x, cultist.y, player.x, player.y);
 
-    // 3. Attack if in range (3-4) and has LOS and cooldown ready
+    // 1. Attack if in range (<= 5) and has LOS and cooldown ready
     if (dist <= 5 && hasLOS && cultist.attackCooldown <= 0) {
       cultist.attackCooldown = cultist.attackCadence;
       const damage = Math.floor(Math.random() * (CONFIG.CULTIST_DAMAGE_MAX - CONFIG.CULTIST_DAMAGE_MIN + 1)) + CONFIG.CULTIST_DAMAGE_MIN;
@@ -144,6 +158,35 @@ export class EntityAI {
         message: `${cultist.name} casts Shadow Bolt at you for ${damage} dark damage!`,
         projectiles: [projectile],
       };
+    }
+
+    // 2. Move / Reposition only when moveCooldown has elapsed
+    if ((cultist.moveCooldown ?? 0) <= 0) {
+      cultist.moveCooldown = (cultist.moveCadence || CONFIG.CULTIST_MOVE_CADENCE_SEC) + (Math.random() * 0.3 - 0.1);
+
+      // If too close (distance < 3), retreat to maintain standoff
+      if (dist < CONFIG.CULTIST_STANDOFF_MIN) {
+        const retreatStep = EntityAI.findRetreatStep(cultist, player, gridMap, allMonsters);
+        if (retreatStep) {
+          cultist.facing = EntityAI.getFacing(cultist.x, cultist.y, retreatStep.x, retreatStep.y);
+          cultist.x = retreatStep.x;
+          cultist.y = retreatStep.y;
+        }
+      }
+      // If too far (distance > 4), advance towards standoff range
+      else if (dist > CONFIG.CULTIST_STANDOFF_MAX) {
+        const nextStep = EntityAI.findNextStepAStar(
+          { x: cultist.x, y: cultist.y },
+          { x: player.x, y: player.y },
+          gridMap,
+          allMonsters.filter(m => m.id !== cultist.id && m.hp > 0)
+        );
+        if (nextStep && (nextStep.x !== player.x || nextStep.y !== player.y)) {
+          cultist.facing = EntityAI.getFacing(cultist.x, cultist.y, nextStep.x, nextStep.y);
+          cultist.x = nextStep.x;
+          cultist.y = nextStep.y;
+        }
+      }
     }
 
     return null;

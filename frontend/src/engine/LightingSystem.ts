@@ -9,7 +9,8 @@ export class LightingSystem {
       return CONFIG.LIGHT_SPELL_RADIUS;
     }
     const leftHand = player.paperdoll.left_hand;
-    if (leftHand && leftHand.item_id === 'torch') {
+    const rightHand = player.paperdoll.right_hand;
+    if ((leftHand && leftHand.item_id === 'torch') || (rightHand && rightHand.item_id === 'torch')) {
       return CONFIG.TORCH_LIGHT_RADIUS;
     }
     return CONFIG.BASE_LIGHT_RADIUS;

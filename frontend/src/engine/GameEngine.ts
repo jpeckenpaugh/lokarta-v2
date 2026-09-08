@@ -108,6 +108,8 @@ export class GameEngine {
   public async initializeSession(vocation: VocationType): Promise<void> {
     this.combatLogUI.clear();
     this.combatLogUI.log('Welcome to Lokarta: Come Into The Light.', 'system');
+    this.isFloorCleared = false;
+    this.isGameOver = false;
 
     try {
       // 1. Fetch character profile from backend
@@ -124,8 +126,8 @@ export class GameEngine {
       LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
 
       this.combatLogUI.log(`Entered Subterranean Crypt at (${this.player.x}, ${this.player.y}).`, 'system');
-      if (this.player.paperdoll.left_hand?.item_id === 'torch') {
-        this.combatLogUI.log('Equipped Wooden Torch casts a warm glow (5 tiles radius).', 'spell');
+      if (this.player.paperdoll.left_hand?.item_id === 'torch' || this.player.paperdoll.right_hand?.item_id === 'torch') {
+        this.combatLogUI.log('Equipped Wooden Torch casts a warm glow (6 tiles radius).', 'spell');
       }
 
       // 4. Start loops
@@ -170,6 +172,15 @@ export class GameEngine {
   private applyDungeonData(data: DungeonFloorResponse): void {
     this.gridMap.loadFromMatrix(data.tile_matrix);
 
+    // Ensure player always starts at the designated floor entrance
+    if (data.entrance) {
+      this.player.x = data.entrance.x;
+      this.player.y = data.entrance.y;
+    } else {
+      this.player.x = 2;
+      this.player.y = 2;
+    }
+
     this.ambientLights = data.ambient_lights.map(l => ({
       x: l.x,
       y: l.y,
@@ -199,6 +210,8 @@ export class GameEngine {
       max_hp: s.max_hp,
       facing: 'down',
       isAggroed: false,
+      moveCooldown: Math.random() * 0.5,
+      moveCadence: s.type === 'crypt_skeleton' ? CONFIG.SKELETON_MOVE_CADENCE_SEC : CONFIG.CULTIST_MOVE_CADENCE_SEC,
       attackCooldown: 0,
       attackCadence: s.type === 'crypt_skeleton' ? CONFIG.SKELETON_ATTACK_CADENCE_SEC : CONFIG.CULTIST_ATTACK_CADENCE_SEC,
       visible: false,

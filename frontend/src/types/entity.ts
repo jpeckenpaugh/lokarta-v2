@@ -37,6 +37,8 @@ export interface MonsterEntity {
   max_hp: number;
   facing: Direction;
   isAggroed: boolean;
+  moveCooldown?: number; // in seconds
+  moveCadence?: number; // movement delay between steps (e.g. 0.8s)
   attackCooldown: number; // in seconds
   attackCadence: number; // 1.5s for skeleton, 2.0s for cultist
   visible: boolean; // computed by light mask
