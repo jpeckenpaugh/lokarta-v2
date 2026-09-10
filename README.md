@@ -6,19 +6,88 @@
 
 ## 1. Overview & Vision
 
-**Lokarta: Come Into The Light** combines deliberate grid-locked movement, tactile floor inventory stacks, and atmospheric light-versus-darkness mechanics.
+**Lokarta: Come Into The Light** is a 2D grid-locked subterranean exploration RPG combining deliberate tactical movement, tactile floor inventory mechanics, and atmospheric light-versus-darkness dynamics.
 
-The game is structured with a **client-authoritative Single Page Application (SPA)** frontend to guarantee zero-latency tactical responsiveness and combat feedback, paired with a companion **FastAPI + SQLite** backend responsible for dungeon layout distribution, loot seeding, and persistent character/world state saves.
+The application is structured as a **client-authoritative Single Page Application (SPA)** to ensure zero-latency tactical response and immediate combat feedback, coupled with a companion **FastAPI + SQLite** backend responsible for dungeon layout distribution, loot seeding, and persistent character/world state saves.
 
-### Key Highlights
-- **The "Light" Mechanic:** Subterranean dungeon chambers are naturally pitch black. Players navigate using illumination from equipped torches, ambient wall sconces, or class spells (*Light Aura*), while darkness conceals lurking monsters and terrain hazards.
+### Key Highlights & Pillars
+- **The "Light" Mechanic:** Subterranean dungeon chambers are naturally pitch black. Players navigate using illumination from equipped torches, ambient wall sconces, or class spells (*Light Aura*, *Holy Radiance*), while darkness conceals lurking monsters and terrain hazards until brought into the light radius.
 - **Oblique Top-Down Pixel Aesthetic:** Rendered on a rigid 32×32 pixel grid with upright walls, entities, and flat stone flagstones.
-- **Tactile Environment:** Dropped items, potions, and equipment physically render on the ground tile stack (`tile.items = [...]`). Objects exist directly in the game world.
-- **Modular Desktop Shell:** A centered rendering canvas viewport surrounded by classic modular panels: equipment paperdoll, backpack containers, health/mana status pools, ability hotbar, and a scrolling combat message log.
+- **Tactile Environment & Auto-Loot:** Items physically exist in the game world on ground tile stacks (`tile.items = [...]`). Stepping over items auto-loots them directly into active slots without cumbersome menus.
+- **Roguelike Fate Grant Drafting:** Characters start with zero initial inventory. At Level 1 and at every level-up milestone, players draft active abilities, weapons, spells, and equipment from a weighted 5-card offering.
+- **Multi-Modal Action Hotbar:** 10 action slots mapped to keys `1`–`9` and `0` supporting dynamic input timing (Tap, Hold/Charge, Double-Tap).
+- **Modular Desktop Shell:** A centered rendering canvas viewport flanked by modular panels: 4-slot Paperdoll, 6-slot Backpack container, status pools (HP/MP gauges + buff timers), 10 Action Slots, and a scrolling combat message log.
 
 ---
 
-## 2. Architecture & Technology Stack
+## 2. 4 Playable Vocations
+
+Players can embark on their descent with four distinct vocations, each featuring unique attribute balances, starting combat cards, and sprite aesthetics:
+
+| Vocation | Base HP | Base Mana | Combat Role & Core Kit | Archetype Fantasy |
+| :--- | :--- | :--- | :--- | :--- |
+| **🧙 Magician** | 60 | 150 | High magic burst, fragile health. *Wand Spark* (Ranged projectile), *Light Aura* (Vision boost to 7 tiles for 30s), *Energy Beam* (Piercing line attack through 4 tiles). | Master of arcane rays and illuminating auras. |
+| **🏹 Archer** | 90 | 80 | Balanced ranged skirmisher. *Bow Shot* (Consumes arrows), *Power Shot* (High physical damage burst), *Eagle Eye* (Extended line-of-sight). | Tactical sniper maintaining line-of-sight and ammo reserves. |
+| **⚔️ Fighter** | 140 | 30 | High durability melee powerhouse. *Slash* (Adjacent physical strike), *Cleave* (Sweeping arc hit), *Fortify* (Defensive stance absorbing 50% damage). | Frontline brawler cleaving through swarms of crypt horrors. |
+| **🛡️ Paladin** | 120 | 90 | Holy champion blending melee and radiant magic. *Holy Strike* (Radiant blade hit), *Healing Prayer* (Restores HP), *Holy Radiance* (Passive light and protection). | Sacred crusader vanquishing darkness with divine power. |
+
+---
+
+## 3. 10 Action Slots & Multi-Modal Gesture Engine
+
+The user interface features **10 modular action slots** bound to number keys `1` through `9` and `0`. Each slot can hold weapons, active spells, class techniques, scrolls, torches, or consumables.
+
+### Multi-Modal Timing & Activation Modes
+
+The input engine classifies key presses and pointer clicks into three distinct gesture modes:
+
+1. **Tap (< 250ms):**
+   - Triggers standard primary action execution (e.g. quick strike, standard spell cast, or drinking a potion).
+2. **Hold / Charge (≥ 250ms, up to 1.5s):**
+   - Displays a live, real-time visual energetic charge meter filling over the slot button.
+   - Discharging the held key releases an **Overcharged Attack** delivering 1.5× bonus damage or expanded area coverage.
+3. **Double-Tap (< 300ms between presses):**
+   - Triggers rapid combo activations, twin-strike maneuvers, or rapid utility triggers.
+
+All action slots feature real-time radial cooldown sweep animations and resource cost indicators. Slots can be freely rearranged via drag-and-drop.
+
+---
+
+## 4. Zero-Inventory Start & Fate Grant Roguelike Engine
+
+Lokarta replaces fixed starting equipment loadouts with a dynamic roguelike draft engine:
+
+- **Zero Starting Inventory:** Every new character profile begins with empty action slots, an empty backpack, and an unequipped paperdoll.
+- **Level 1 Fate Grant Draft:** Upon entering the crypt, exploration pauses and the **Fate Grant Modal** presents a 5-card draft with guaranteed vocation-aligned starter cards (e.g. basic weapon/spell, lighting tool, restorative potion).
+- **Level-Up Milestones:** Every level gained awards a fresh 5-card draft with weighted offerings across rarity tiers:
+  - **Common (60%):** Standard weapons, basic spell upgrades, minor potions.
+  - **Rare (25%):** Enchanted equipment, piercing abilities, advanced elixirs.
+  - **Epic (12%):** Masterwork armaments, high-tier spells, persistent relics.
+  - **Legendary (3%):** Mythic artifacts and ultimate vocation techniques.
+- **Smart Inventory Placement:** Drafted cards automatically populate the lowest empty Action Slot (1–10) first, followed by the Backpack (1–6).
+
+---
+
+## 5. Frictionless Floor Interaction & Inventory Architecture
+
+### Walkover Auto-Loot
+- Stepping onto any floor coordinate containing dropped items automatically loots them into the lowest available Action Slot, then Backpack.
+- Items remain physically rendered on the floor tile stack only if inventory capacity is fully saturated.
+- Direct pointer clicks on adjacent floor items immediately gather them into inventory.
+- Legacy `[E]` (pickup) and `[U]` (use) interaction keys have been completely removed in favor of fluid, frictionless movement.
+
+### Inventory & Paperdoll Layout
+- **Paperdoll (4 Equipment Slots):**
+  - `main_hand`: Weapons and wands.
+  - `off_hand`: Shields, torches, and auxiliary focus items.
+  - `armor`: Robes, chainmail, and plate armors.
+  - `relic`: Sacred amulets, rings, and magical talismans.
+- **Backpack (6 Container Slots):**
+  - Dedicated storage grid `#1` through `#6` for excess gear, potions, and consumables with drag-and-drop and one-click equip capabilities.
+
+---
+
+## 6. Architecture & Technology Stack
 
 ```text
 ┌────────────────────────────────────────────────────────┐
@@ -26,34 +95,36 @@ The game is structured with a **client-authoritative Single Page Application (SP
 │  ├── Engine Core (Headless TypeScript):               │
 │  │   - Internal tick loop (100ms / 10 Hz)              │
 │  │   - Discrete grid coordinates (x, y)                │
-│  │   - Raycasting for Line-of-Sight & Light Radius     │
-│  │   - Monster AI state machines & A* pathfinding      │
+│  │   - Bresenham Raycasting (Lighting & LOS)           │
+│  │   - Multi-Modal Gesture Engine (Tap, Hold, D-Tap)   │
+│  │   - Fate Grant Roguelike Drafting & Level Scaling   │
+│  │   - Tactical Monster AI (A* pursuit & standoff)     │
 │  └── View & UI Layer:                                  │
-│      - HTML5 2D Canvas viewport & procedural sprites   │
-│      - Light-mask / Fog-of-War darkness overlay        │
-│      - DOM/CSS HUD (Paperdoll, Backpack, Combat Log)   │
+│      - HTML5 2D Canvas Viewport (32x32px tiles/sprites)│
+│      - Dynamic Light-mask & Fog-of-War Alpha Overlay   │
+│      - Modular DOM/CSS HUD (10 Slots, Paperdoll, Logs) │
 └───────────────▲────────────────────────▲───────────────┘
                 │ GET /api/dungeons/{id} │ POST /api/character/save
                 │ (Layout & Spawns)      │ POST /api/dungeon/sync
 ┌───────────────▼────────────────────────▼───────────────┐
 │                    FastAPI Backend                     │
-│  ├── /api/dungeons/{id} -> Matrix, Spawner Layout      │
-│  ├── /api/characters/{id} -> Vocation, Stats, Inventory│
+│  ├── /api/dungeons/{id} -> 40x40 Matrix & Spawners     │
+│  ├── /api/characters/{id} -> 4 Vocations, Stats, Slots │
 │  └── SQLite DB (characters, inventory, world_progress) │
 └────────────────────────────────────────────────────────┘
 ```
 
-- **Frontend:** TypeScript + Vite, HTML5 2D Canvas rendering, modular DOM/CSS UI.
+- **Frontend:** TypeScript + Vite, HTML5 2D Canvas rendering, modular CSS grid framing.
 - **Backend:** Python 3.9+ (Python 3.11/3.12 recommended), FastAPI, Uvicorn, Pydantic v2.
-- **Persistence:** SQLite (`lokarta.db`) with asynchronous access via `aiosqlite`.
+- **Persistence:** SQLite (`lokarta.db`) with asynchronous operations via `aiosqlite`.
 - **Testing:** `pytest` + `pytest-asyncio` (backend), `vitest` (frontend engine).
 
 ---
 
-## 3. Setup & Execution Guide
+## 7. Setup & Execution Guide
 
 ### Prerequisites
-- **Python:** 3.9 or higher (3.11+ recommended)
+- **Python:** 3.9 or higher (3.11/3.12 recommended)
 - **Node.js & npm:** Node.js v18+ and npm v9+
 
 ### Quick Start
@@ -62,98 +133,65 @@ The game is structured with a **client-authoritative Single Page Application (SP
    ```bash
    ./install.sh
    ```
-   This script provisions the Python virtual environment (`.venv`), installs required Python packages from `requirements.txt`, and runs `npm install` inside `./frontend`.
+   Provisions the Python virtual environment (`.venv`), installs backend dependencies from `requirements.txt`, and runs `npm install` inside `./frontend`.
 
 2. **Launch Services:**
    ```bash
    ./run.sh
    ```
-   This launches both services concurrently:
-   - **Backend API:** `http://127.0.0.1:8000` (Interactive API Docs: `http://127.0.0.1:8000/docs`)
+   Spawns both backend and frontend concurrently:
+   - **Backend API:** `http://127.0.0.1:8000` (Swagger UI: `http://127.0.0.1:8000/docs`)
    - **Frontend Client:** `http://localhost:5173`
-   - Logs are captured in `tmp/backend.log` and `tmp/frontend.log`.
-   - Press `Ctrl+C` to gracefully terminate both services.
+   - Real-time service logs are directed to `tmp/backend.log` and `tmp/frontend.log`.
+   - Press `Ctrl+C` to gracefully terminate all services.
 
-3. **Open the Game:**
-   Navigate your web browser to **`http://localhost:5173`**.
+3. **Play:**
+   Open your browser to **`http://localhost:5173`**.
 
 ---
 
-## 4. Controls & Gameplay
+## 8. Controls & Keybindings Reference
 
-### Character Selection
-At launch, choose between two distinct vocations:
-- **Magician:** High mana pool, fragile health. Starts equipped with an *Apprentice Wand*, *Wooden Torch*, and *Cloth Robe*.
-- **Archer:** Balanced health and mana. Starts equipped with a *Wooden Bow*, *Leather Armor*, and a quiver of *Arrows*.
-
-### Keybindings & Interactions
-
-| Key / Control | Action | Details |
+| Key / Input | Action | Behavior / Notes |
 | :--- | :--- | :--- |
-| **`W` / `Up Arrow`** | Move North | Step 1 tile north (10 Hz discrete movement). |
-| **`S` / `Down Arrow`** | Move South | Step 1 tile south (10 Hz discrete movement). |
-| **`A` / `Left Arrow`** | Move West | Step 1 tile west (10 Hz discrete movement). |
-| **`D` / `Right Arrow`** | Move East | Step 1 tile east (10 Hz discrete movement). |
-| **`[1]`** | Primary Attack | Magician: *Wand Spark* (Ranged magic projectile)<br>Archer: *Bow Shot* (Consumes 1 Arrow). |
-| **`[2]`** | Class Ability | Magician: *Light Aura* (Expands sight radius to 7 tiles for 30s)<br>Archer: *Power Shot* (High physical damage burst). |
-| **`[3]`** | Secondary Spell | Magician: *Energy Beam* (Piercing line attack through up to 4 tiles). |
-| **`[E]`** | Pick Up Item | Picks up the top item on the current tile into your 6-slot backpack. |
-| **`[U]`** | Use Ground Potion | Drinks a potion directly from the floor tile without picking it up. |
-| **Mouse Click** | UI Interactions | Click backpack items to use/equip/drop; click paperdoll slots to unequip. |
+| **`W` / `Up Arrow`** | Move North | Step 1 tile north (10 Hz discrete grid movement). |
+| **`S` / `Down Arrow`** | Move South | Step 1 tile south (10 Hz discrete grid movement). |
+| **`A` / `Left Arrow`** | Move West | Step 1 tile west (10 Hz discrete grid movement). |
+| **`D` / `Right Arrow`** | Move East | Step 1 tile east (10 Hz discrete grid movement). |
+| **`[1]` – `[9]`, `[0]` (Tap)** | Primary Action | Quick-cast spell, perform basic weapon strike, or drink potion in slot. |
+| **`[1]` – `[9]`, `[0]` (Hold)** | Charged Action | Hold ≥250ms to fill charge meter; release for 1.5× Overcharged attack. |
+| **`[1]` – `[9]`, `[0]` (Double-Tap)** | Combo Action | Press twice within 300ms for rapid twin-strike or quick utility burst. |
+| **Walkover** | Auto-Loot | Walk onto any ground item to immediately loot into Action Slots / Backpack. |
+| **Left Click (Canvas)** | Interact / Target | Click an enemy to target; click adjacent floor item to loot. |
+| **Left Click (Inventory)** | Equip / Use | Click backpack items to equip/use; click paperdoll slots to unequip. |
+| **Drag & Drop** | Slot Management | Rearrange items freely across 10 Action Slots and 6 Backpack slots. |
 
 ---
 
-## 5. Implementation Summary (What Was Built)
+## 9. Verification Results
 
-The vertical slice implements all 7 capability areas defined in the project specifications:
+A comprehensive verification pass was conducted across the completed stack (`backend/` and `frontend/`) against all specifications in `concept.md`, `docs/architecture.md`, and `features/briefs/01-09`:
 
-1. **Dungeon Environment & Grid Exploration (`features/01`):**
-   - 40×40 Subterranean Crypt with walkable stone flagstones, solid perimeter/interior stone walls, an entrance at `(2, 2)`, and illuminated exit stairs at `(37, 37)`.
-   - Discrete 10 Hz tick loop ensuring grid-aligned movement on 32×32px tiles without analog slipping.
-2. **Dynamic Lighting & Line-of-Sight (`features/02`):**
-   - Bresenham raycasting computing light propagation from the player and ambient wall sconces.
-   - Wall light occlusion preventing light leaks through solid structures.
-   - Pitch-black fog-of-war alpha compositing that conceals dormant monsters until illuminated.
-   - Dynamic sight radii: 1 tile baseline unlit, 5 tiles with equipped torch, 7 tiles with Magician *Light* aura, and 3 tiles for static ambient emitters.
-3. **Playable Vocations & Combat Abilities (`features/03`):**
-   - Magician and Archer archetypes with dedicated stat pools and active ability sets.
-   - Strict resource enforcement: Mana deduction for magic spells, physical arrow inventory consumption for archery.
-   - Piercing multi-target projectile mechanics for *Energy Beam*.
-4. **Enemy Archetypes & Tactical AI (`features/04`):**
-   - **Crypt Skeleton (Melee):** Awakens when brought into player's light radius; pursues using A* pathfinding; attacks every 1.5 seconds when adjacent.
-   - **Shadow Cultist (Ranged):** Maintains a 3-to-4 tile standoff distance (advancing or retreating) and casts *Shadow Bolt* projectiles every 2.0 seconds with line-of-sight.
-   - Defeated monsters dynamically spawn loot directly on their death tiles.
-5. **Tactile Inventory, Equipment & Ground Stacks (`features/05`):**
-   - 6-slot backpack container and 3-slot paperdoll (`right_hand`, `left_hand`, `armor`).
-   - Ground items stack directly on grid tiles (`tile.items = [...]`).
-   - Support for picking up, dropping, equipping, and consuming items directly from backpack or floor.
-6. **Modular Desktop Shell Interface (`features/06`):**
-   - Viewport canvas flanked by modular UI panels: Paperdoll, Backpack, Status Bars (HP/MP gauges + buff timers), Action Hotbar (with cooldown indicators), and auto-scrolling Combat Log.
-7. **State Persistence & Synchronization (`features/07`):**
-   - REST endpoints (`/api/dungeons/{id}`, `/api/characters/{id}`, `/api/character/save`, `/api/dungeon/sync`).
-   - SQLite tables (`characters`, `inventory_items`, `dungeon_floors`, `world_progress`) committing mutated stats, equipment, and floor clearance.
+### Verification Summary: **PASS (9/9 Capability Areas Verified)**
 
----
-
-## 6. Verification Results
-
-A comprehensive verification pass was executed in Stage 08, covering live REST services, automated test suites, asset builds, and static engine inspection.
-
-### Test Suites & Status: **PASS (All 9 Verification Areas Passed)**
+- **Backend Pytest Suite:** **8/8 tests passed** (Health checks, 4-vocation zero-inventory seeding, 40×40 dungeon matrix delivery, 10-slot action bar persistence, 4-slot paperdoll storage, level/XP progression, and floor clearance sync).
+- **Frontend Vitest Suite:** **20/20 tests passed** (Grid collision, LOS wall occlusion, dynamic light radii, multi-modal gesture classification, 4-vocation combat kits, Fate Grant drafting, walkover auto-loot, and state synchronization).
+- **Production Asset Compilation:** **0 TypeScript or Vite bundling errors**.
 
 ```text
 ============================= Backend Test Suite (pytest) =============================
-tests/test_backend.py::test_health_endpoints PASSED                             [ 14%]
-tests/test_backend.py::test_get_dungeon_floor_1 PASSED                          [ 28%]
-tests/test_backend.py::test_get_nonexistent_dungeon_floor PASSED                [ 42%]
-tests/test_backend.py::test_character_seeding_magician PASSED                   [ 57%]
-tests/test_backend.py::test_character_seeding_archer PASSED                     [ 71%]
-tests/test_backend.py::test_character_save_and_persistence PASSED               [ 85%]
-tests/test_backend.py::test_dungeon_sync PASSED                                 [100%]
-================================ 7 passed in 0.22s ====================================
+tests/test_backend.py::test_health_endpoints PASSED                      [ 12%]
+tests/test_backend.py::test_get_dungeon_floor_1 PASSED                   [ 25%]
+tests/test_backend.py::test_get_nonexistent_dungeon_floor PASSED         [ 37%]
+tests/test_backend.py::test_character_seeding_all_four_vocations_zero_inventory PASSED [ 50%]
+tests/test_backend.py::test_character_save_and_persistence_with_10_action_slots_and_paperdoll PASSED [ 62%]
+tests/test_backend.py::test_dungeon_sync PASSED                          [ 75%]
+tests/test_backend.py::test_get_multiple_dungeon_floors_and_boss_floor_20 PASSED [ 87%]
+tests/test_backend.py::test_character_level_and_xp_persistence PASSED    [100%]
+============================== 8 passed in 0.26s ===============================
 
 ============================ Frontend Test Suite (vitest) =============================
- ✓ tests/engine.test.ts (13 tests)
+ ✓ tests/engine.test.ts (20 tests)
    ✓ GridMap & Collision > correctly reports walkable floor and blocking walls
    ✓ GridMap & Collision > handles floor item stacking and popping
    ✓ LightingSystem & Line of Sight > computes correct light radii for base, torch, and spell aura
@@ -161,53 +199,51 @@ tests/test_backend.py::test_dungeon_sync PASSED                                 
    ✓ CombatSystem & Abilities > executes Magician Light spell and checks mana cost and cooldown
    ✓ CombatSystem & Abilities > executes Archer Bow Shot, decrements arrows, and checks empty ammo guard
    ✓ CombatSystem & Abilities > executes Magician Energy Beam along 4-tile direction piercing multiple enemies
+   ✓ CombatSystem & Abilities > executes Fighter Cleave damaging adjacent enemies
+   ✓ CombatSystem & Abilities > executes Paladin Healing Prayer and restores HP
+   ✓ GestureEngine & Multi-Modal Inputs > classifies short press as Tap
+   ✓ GestureEngine & Multi-Modal Inputs > classifies held press as Hold / Charge
+   ✓ GestureEngine & Multi-Modal Inputs > classifies rapid consecutive presses as Double-Tap
    ✓ EntityAI Tactical Archetypes > Skeleton moves towards player and attacks when adjacent
    ✓ EntityAI Tactical Archetypes > Cultist maintains standoff distance and casts shadow bolt
-   ✓ InventorySystem & Consumables > picks up items into backpack with 6-slot capacity enforcement
-   ✓ InventorySystem & Consumables > equips and unequips items to paperdoll slots
+   ✓ InventorySystem & Consumables > walkover auto-loots items into action bar first, then backpack
+   ✓ InventorySystem & Consumables > equips and unequips items to 4-slot paperdoll
    ✓ InventorySystem & Consumables > consumes health potion from backpack and restores HP
-   ✓ InventorySystem & Consumables > consumes potion directly from ground tile without picking up
-================================ 13 passed in 3ms =====================================
-
-========================= Production Asset Compilation (vite) ==========================
-✓ 23 modules transformed.
-dist/index.html                  1.96 kB │ gzip:  0.84 kB
-dist/assets/index-J9FPeuFh.css  11.08 kB │ gzip:  2.86 kB
-dist/assets/index-DMfERvW4.js   55.56 kB │ gzip: 15.60 kB
-✓ built in 95ms
+   ✓ FateGrantSystem > generates 5 cards with guaranteed vocation starter cards at Level 1
+   ✓ FateGrantSystem > rolls higher rarity cards on Level-Up
+   ✓ ProgressionSystem > adds XP and triggers level-up event
+============================== 20 passed in 6ms ================================
 ```
 
-To run the test suites locally:
+To run test suites locally:
 ```bash
-# Run backend pytest suite
-.venv/bin/pytest -v
+# Backend pytest suite
+.venv/bin/pytest tests/test_backend.py -v
 
-# Run frontend vitest suite
-(cd frontend && npm test)
+# Frontend vitest suite
+npm --prefix frontend test
 
-# Run frontend build
-(cd frontend && npm run build)
+# Frontend production build
+npm --prefix frontend run build
 ```
 
-For full details and captured HTTP payloads, refer to [`docs/verification-report.md`](docs/verification-report.md).
+For full details, live HTTP payloads, and traceability tables, refer to [`docs/verification-report.md`](docs/verification-report.md).
 
 ---
 
-## 7. Known Issues & Limitations
+## 10. Known Issues & Limitations
 
-As recorded during verification and architectural design:
-1. **Single Floor Scope:** The vertical slice is confined to a single subterranean crypt floor (Floor 1). Multi-floor $Z$-axis transitions and deeper floor generation are deferred to future milestones.
-2. **Local Session Identity:** Authentication uses local character profile IDs (`magician`, `archer`) rather than multi-user OAuth or tokenized accounts.
-3. **Client-Authoritative Architecture:** Combat, AI, and light calculations run client-side. Live WebSocket server-authoritative multiplayer is out-of-scope for the MVP.
-4. **Testing Disclosure:** Browser DOM and Canvas UI interactions were verified via unit tests, TypeScript compilation, and static code inspection; live browser automation (e.g. Playwright/Puppeteer) was not executed in the verification environment.
+1. **Single Floor Active Scope:** The vertical slice features a handcrafted 40×40 crypt floor (Floor 1). Multi-floor $Z$-axis elevation transitions and procedural floor generation are planned for future passes.
+2. **Local Session Authentication:** Uses local profile IDs (`magician`, `archer`, `fighter`, `paladin`) without centralized multi-user OAuth.
+3. **Client-Authoritative Architecture:** Combat calculations, gesture timings, and local AI state machines execute in the browser client. Live WebSocket server-authoritative multiplayer is deferred.
+4. **Testing Disclosure:** Browser DOM and Canvas UI interactions were verified through automated TypeScript unit tests, Vite build compilation, and static code inspection; live browser automation was not executed in the test environment.
 
 ---
 
-## 8. Recommended Next Actions
+## 11. Recommended Next Actions
 
-For future development passes, the following enhancements are recommended:
-1. **Procedural Multi-Floor Dungeon Generator:** Add support for deeper floors ($Z$-transitions) with increasing monster difficulty, themed tilesets, and staircase transitions.
-2. **Expanded Vocation & Spell Trees:** Introduce additional classes (Knight, Paladin, Druid), active defensive shields, area-of-effect spells, and passive talent progression.
-3. **Boss Encounters & Special Mechanics:** Implement multi-phase crypt boss encounters requiring tactical light management and environmental interactions.
-4. **Sound FX & Ambient Audio:** Integrate Web Audio sound effects for footfalls, wand sparks, bow releases, skeleton clatter, and ambient subterranean hums.
-5. **Server-Authoritative Co-Op:** Expand the FastAPI backend with WebSockets to enable cooperative multi-player dungeon delving.
+1. **Procedural Multi-Floor Crypts:** Introduce procedural dungeon generation with staircase transitions connecting deeper crypt levels.
+2. **Boss Encounters & Dynamic Lighting Hazards:** Add multi-phase dungeon bosses with shadow aura mechanics that extinguish player light sources.
+3. **Audio & Sound FX Engine:** Integrate Web Audio sound effects for weapon impacts, spell charges, footsteps, and atmospheric dungeon ambiance.
+4. **Expanded Card Pool & Relic Synergies:** Enrich the Fate Grant draft pool with passive build-defining artifacts and hybrid spell combinations.
+5. **Multiplayer Co-Op:** Expand the FastAPI backend with WebSocket channels for co-op dungeon exploration.

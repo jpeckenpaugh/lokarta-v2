@@ -1,33 +1,37 @@
 # Summary: Project Manager / Documentation (Stage 09)
 
-- **Date:** 2026-09-08
+- **Date:** 2026-09-10
 - **Author / Executor:** Project Manager / Documentation Agent
 - **Instruction file:** `instructions/build/09-documentation.md`
-- **Commit:** `stage 09: close out development pass and document project`
+- **Commit:** `stage 09: update project documentation for 10 action slots, fate grant draft, and 4 vocations`
 
 ## Work Completed
 
-Closed out the development pass for **Lokarta: Come Into The Light** and produced the comprehensive project user and architecture documentation in `README.md`. Reviewed all inputs including `concept.md`, `features/briefs/*.md`, backend and frontend codebases, `docs/verification-report.md`, and all upstream stage summaries (`02` through `08`).
+Closed out the development pass and documented the complete state of **Lokarta: Come Into The Light** in `README.md` and this summary:
 
-Documented the complete state of the project accurately and honestly without retroactively repairing or redefining upstream work:
-1. Authored `README.md` providing an executive overview, architecture and technology stack breakdown, installation and run instructions (`./install.sh`, `./run.sh`), default ports (`8000` backend, `5173` frontend), controls and keybindings, feature-by-feature implementation summary, test suite commands, verification results, known limitations, and prioritized next steps.
-2. Verified that all 9 acceptance criteria / verification items in `docs/verification-report.md` passed (backend pytest: 7/7 passed, frontend vitest: 13/13 passed, Vite build: clean).
-3. Formulated known issues and testing disclosures (single-floor vertical slice scope, local profile identity, client-authoritative execution, and static/unit test UI verification methodology).
-4. Outlined actionable future enhancements for multi-floor progression, audio integration, expanded class trees, and server-authoritative multiplayer.
+1. **Comprehensive Project Overview & Vision:** Documented the core vision, 2D tile-based mechanics, atmospheric lighting, and client-authoritative SPA + FastAPI/SQLite architecture.
+2. **4 Playable Vocations:** Documented all 4 classes (**Magician**, **Archer**, **Fighter**, **Paladin**) with base health/mana pools, combat kits, and fantasy archetypes.
+3. **10 Action Slots & Multi-Modal Gestures:** Documented the 10 modular hotbar slots (keys `1`–`9` and `0`) and input timing modes: **Tap** (<250ms), **Hold / Charge** (≥250ms with dynamic gauge and 1.5× Overcharged attack), and **Double-Tap** (<300ms combo attack).
+4. **Zero-Inventory Start & Fate Grant Roguelike Engine:** Documented the Level 1 and level-up 5-card draft progression, weighted rarity distribution (Common, Rare, Epic, Legendary), and automated slot population.
+5. **Frictionless Floor Interaction:** Documented walkover auto-loot, direct canvas click looting, and the explicit deprecation and removal of legacy `[E]` and `[U]` keys.
+6. **Inventory Architecture:** Documented the 4-slot Paperdoll (`main_hand`, `off_hand`, `armor`, `relic`) and 6-slot Backpack containers.
+7. **Execution & Keybindings Guide:** Documented dependency installation (`./install.sh`), multi-service runner (`./run.sh`), default ports (8000 & 5173), and a full controls reference table.
+8. **Verification Results:** Documented all verification achievements, including 8/8 backend pytest cases, 20/20 frontend vitest cases, and 0 production build errors.
+9. **Project Limitations & Next Actions:** Recorded known boundaries (single-floor scope, local authentication, client-authoritative loop) and proposed roadmap items (procedural floors, boss fights, audio engine, multiplayer co-op).
 
 ## Outputs Produced
 
-- `README.md` — Complete project documentation, setup guide, gameplay manual, and status report.
-- `summaries/09-documentation.md` — Stage 09 closeout summary.
+- `README.md`
+- `summaries/09-documentation.md`
 
 ## Key Decisions
 
-- **Comprehensive Single-Source User Manual:** Structured `README.md` to serve both as an onboarding guide for players/testers and a technical reference for future engineering passes.
-- **Accurate Traceability & Disclosures:** Recorded the exact verified test metrics (20 total automated tests across backend and frontend) and accurately disclosed testing methods (static review + unit tests for Canvas/DOM rather than headless browser automation) without altering or exaggerating results.
+- **Direct Alignment with Verification & Architecture:** Synchronized all documentation with the verified implementations delivered in Stages 06–08, accurately reflecting 4 vocations, 10 action slots, and roguelike drafting.
+- **Accurate Known Issues & Disclosures:** Recorded actual testing methodology and current MVP boundaries without altering or embellishing facts.
 
 ## Open Questions & Concerns
 
-None. The vertical slice implementation is complete, all tests pass, and all stage documentation and summaries are in place.
+None. The documentation is complete, accurate, and reflects the full application state.
 
 ## Status
 
