@@ -17,7 +17,7 @@ export class LightMaskRenderer {
     // Create an offscreen or directly composite dark overlay
     ctx.save();
 
-    // 1. Render black darkness tiles over non-lit tiles (removing block darkness)
+    // 1. Render black darkness tiles over unlit / occluded tiles
     const startTileX = Math.max(0, Math.floor(cameraX / CONFIG.GRID_SIZE));
     const endTileX = Math.min(gridMap.width - 1, Math.ceil((cameraX + viewportWidth) / CONFIG.GRID_SIZE));
     const startTileY = Math.max(0, Math.floor(cameraY / CONFIG.GRID_SIZE));
@@ -32,18 +32,41 @@ export class LightMaskRenderer {
         if (!tile.isLit) {
           ctx.fillStyle = '#050608';
           ctx.fillRect(screenX, screenY, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
-        } else if (tile.lightIntensity < 0.12) {
-          // Soft transition only at the extreme outer perimeter edge
-          const edgeAlpha = Math.min(0.75, (0.12 - tile.lightIntensity) / 0.12);
-          ctx.fillStyle = `rgba(5, 6, 8, ${edgeAlpha.toFixed(2)})`;
-          ctx.fillRect(screenX, screenY, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
         }
       }
     }
 
-    // 2. Render localized glowing auras for magical items, active spells, and torches
+    // 2. Render smooth continuous radial darkness dissolve over the player's field of view
+    // (0% darkness in core vision, smooth gradual shadow falloff toward outer 10-tile boundary)
+    const playerRadius = player.lightSpellTimer > 0
+      ? CONFIG.LIGHT_SPELL_RADIUS
+      : (player.paperdoll.main_hand?.item_id === 'torch' || player.paperdoll.off_hand?.item_id === 'torch' || player.action_bar.some(i => i?.item_id === 'torch'))
+      ? CONFIG.TORCH_LIGHT_RADIUS
+      : CONFIG.BASE_LIGHT_RADIUS;
+
     const playerScreenX = player.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - cameraX;
     const playerScreenY = player.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - cameraY;
+    const maxRadiusPx = (playerRadius + 0.5) * CONFIG.GRID_SIZE;
+    const innerClearRadiusPx = (playerRadius * 0.58) * CONFIG.GRID_SIZE;
+
+    const darkGrad = ctx.createRadialGradient(
+      playerScreenX,
+      playerScreenY,
+      innerClearRadiusPx,
+      playerScreenX,
+      playerScreenY,
+      maxRadiusPx
+    );
+    darkGrad.addColorStop(0, 'rgba(5, 6, 8, 0.0)');
+    darkGrad.addColorStop(0.35, 'rgba(5, 6, 8, 0.18)');
+    darkGrad.addColorStop(0.70, 'rgba(5, 6, 8, 0.55)');
+    darkGrad.addColorStop(0.95, 'rgba(5, 6, 8, 0.90)');
+    darkGrad.addColorStop(1.0, 'rgba(5, 6, 8, 1.0)');
+
+    ctx.fillStyle = darkGrad;
+    ctx.beginPath();
+    ctx.arc(playerScreenX, playerScreenY, maxRadiusPx, 0, Math.PI * 2);
+    ctx.fill();
 
     // Check for active spell or glowing weapon/torch
     const hasActiveSpell = player.lightSpellTimer > 0;
