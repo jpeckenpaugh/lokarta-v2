@@ -7,6 +7,8 @@
  * - CombatSystem
  * - EntityAI
  * - InventorySystem
+ * - FateGrantSystem
+ * - GestureEngine
  */
 
 export const TILE_TYPES = {
@@ -22,14 +24,27 @@ export const CONFIG = {
   MAP_HEIGHT: 40,
   TICK_INTERVAL_MS: 100, // 10 Hz fixed simulation tick
 
+  // Inventory & Slots
+  ACTION_BAR_SLOTS: 10,
+  BACKPACK_SLOTS: 6,
+
+  // Gesture Timings (ms)
+  TAP_MAX_MS: 250,
+  HOLD_MIN_MS: 250,
+  HOLD_MAX_MS: 1200,
+  DOUBLE_TAP_MAX_MS: 300,
+
   // Lighting
-  BASE_LIGHT_RADIUS: 3,
-  TORCH_LIGHT_RADIUS: 7,
-  LIGHT_SPELL_RADIUS: 6,
+  BASE_LIGHT_RADIUS: 10,
+  TORCH_LIGHT_RADIUS: 14,
+  LIGHT_SPELL_RADIUS: 12,
   LIGHT_SPELL_DURATION_SEC: 30,
   AMBIENT_LIGHT_RADIUS: 4,
 
-  // Abilities & Combat
+  // Class Mastery
+  NATIVE_CLASS_MULTIPLIER: 2.5,
+
+  // Abilities & Combat Base Values
   MAGICIAN_SPARK_DAMAGE_MIN: 12,
   MAGICIAN_SPARK_DAMAGE_MAX: 16,
   MAGICIAN_SPARK_RANGE: 5,
@@ -53,6 +68,25 @@ export const CONFIG = {
   ARCHER_POWER_SHOT_DAMAGE_MAX: 42,
   ARCHER_POWER_SHOT_RANGE: 6,
   ARCHER_POWER_SHOT_COOLDOWN_SEC: 4.0,
+
+  FIGHTER_SLASH_DAMAGE_MIN: 16,
+  FIGHTER_SLASH_DAMAGE_MAX: 22,
+  FIGHTER_SLASH_COOLDOWN_SEC: 0.8,
+
+  FIGHTER_CLEAVE_MANA_COST: 10,
+  FIGHTER_CLEAVE_DAMAGE_MIN: 24,
+  FIGHTER_CLEAVE_DAMAGE_MAX: 34,
+  FIGHTER_CLEAVE_COOLDOWN_SEC: 2.5,
+
+  PALADIN_HOLY_STRIKE_MANA_COST: 10,
+  PALADIN_HOLY_STRIKE_DAMAGE_MIN: 18,
+  PALADIN_HOLY_STRIKE_DAMAGE_MAX: 26,
+  PALADIN_HOLY_STRIKE_COOLDOWN_SEC: 1.2,
+
+  PALADIN_HEAL_MANA_COST: 25,
+  PALADIN_HEAL_MIN: 35,
+  PALADIN_HEAL_MAX: 50,
+  PALADIN_HEAL_COOLDOWN_SEC: 6.0,
 
   // Monster Balance & Cadence
   RAT_MOVE_CADENCE_SEC: 0.6,
@@ -88,8 +122,8 @@ export const DEFAULT_ARCHETYPES = {
     vocation: 'magician',
     hp: 60,
     max_hp: 60,
-    mana: 120,
-    max_mana: 120,
+    mana: 150,
+    max_mana: 150,
     level: 1,
     xp: 0,
     xpToNextLevel: 100,
@@ -98,67 +132,28 @@ export const DEFAULT_ARCHETYPES = {
     y: 2,
     facing: 'right',
     lightSpellTimer: 0,
-    cooldowns: {
-      wand_spark: 0,
-      light: 0,
-      energy_beam: 0,
-    },
+    cooldowns: {},
     skillBoosts: {
       damageMultiplier: 1.0,
       bonusRange: 0,
       bonusRegen: 0,
     },
+    action_bar: [null, null, null, null, null, null, null, null, null, null],
     paperdoll: {
-      right_hand: {
-        item_id: 'apprentice_wand',
-        name: 'Apprentice Wand',
-        type: 'weapon',
-        quantity: 1,
-        stat_bonus: 12,
-      },
-      left_hand: {
-        item_id: 'torch',
-        name: 'Wooden Torch',
-        type: 'offhand',
-        quantity: 1,
-        stat_bonus: 5,
-      },
-      armor: {
-        item_id: 'cloth_robe',
-        name: 'Cloth Robe',
-        type: 'armor',
-        quantity: 1,
-        stat_bonus: 2,
-      },
+      main_hand: null,
+      off_hand: null,
+      armor: null,
+      relic: null,
     },
-    backpack: [
-      {
-        item_id: 'mana_potion',
-        name: 'Mana Potion',
-        type: 'consumable',
-        quantity: 2,
-        stat_bonus: 40,
-      },
-      {
-        item_id: 'health_potion',
-        name: 'Health Potion',
-        type: 'consumable',
-        quantity: 1,
-        stat_bonus: 30,
-      },
-      null,
-      null,
-      null,
-      null,
-    ],
+    backpack: [null, null, null, null, null, null],
   },
   archer: {
     id: 'archer',
     vocation: 'archer',
     hp: 90,
     max_hp: 90,
-    mana: 60,
-    max_mana: 60,
+    mana: 80,
+    max_mana: 80,
     level: 1,
     xp: 0,
     xpToNextLevel: 100,
@@ -167,58 +162,86 @@ export const DEFAULT_ARCHETYPES = {
     y: 2,
     facing: 'right',
     lightSpellTimer: 0,
-    cooldowns: {
-      bow_shot: 0,
-      power_shot: 0,
-    },
+    cooldowns: {},
     skillBoosts: {
       damageMultiplier: 1.0,
       bonusRange: 0,
       bonusRegen: 0,
     },
+    action_bar: [null, null, null, null, null, null, null, null, null, null],
     paperdoll: {
-      right_hand: {
-        item_id: 'wooden_bow',
-        name: 'Wooden Bow',
-        type: 'weapon',
-        quantity: 1,
-        stat_bonus: 14,
-      },
-      left_hand: null,
-      armor: {
-        item_id: 'leather_armor',
-        name: 'Leather Armor',
-        type: 'armor',
-        quantity: 1,
-        stat_bonus: 4,
-      },
+      main_hand: null,
+      off_hand: null,
+      armor: null,
+      relic: null,
     },
-    backpack: [
-      {
-        item_id: 'arrows',
-        name: 'Arrows',
-        type: 'ammo',
-        quantity: 15,
-        stat_bonus: 0,
-      },
-      {
-        item_id: 'health_potion',
-        name: 'Health Potion',
-        type: 'consumable',
-        quantity: 1,
-        stat_bonus: 30,
-      },
-      null,
-      null,
-      null,
-      null,
-    ],
+    backpack: [null, null, null, null, null, null],
+  },
+  fighter: {
+    id: 'fighter',
+    vocation: 'fighter',
+    hp: 140,
+    max_hp: 140,
+    mana: 30,
+    max_mana: 30,
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 100,
+    current_floor: 1,
+    x: 2,
+    y: 2,
+    facing: 'right',
+    lightSpellTimer: 0,
+    cooldowns: {},
+    skillBoosts: {
+      damageMultiplier: 1.0,
+      bonusRange: 0,
+      bonusRegen: 0,
+    },
+    action_bar: [null, null, null, null, null, null, null, null, null, null],
+    paperdoll: {
+      main_hand: null,
+      off_hand: null,
+      armor: null,
+      relic: null,
+    },
+    backpack: [null, null, null, null, null, null],
+  },
+  paladin: {
+    id: 'paladin',
+    vocation: 'paladin',
+    hp: 120,
+    max_hp: 120,
+    mana: 90,
+    max_mana: 90,
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 100,
+    current_floor: 1,
+    x: 2,
+    y: 2,
+    facing: 'right',
+    lightSpellTimer: 0,
+    cooldowns: {},
+    skillBoosts: {
+      damageMultiplier: 1.0,
+      bonusRange: 0,
+      bonusRegen: 0,
+    },
+    action_bar: [null, null, null, null, null, null, null, null, null, null],
+    paperdoll: {
+      main_hand: null,
+      off_hand: null,
+      armor: null,
+      relic: null,
+    },
+    backpack: [null, null, null, null, null, null],
   },
 };
 
 /**
  * Creates a cloned player instance from archetype.
- * @param {'magician'|'archer'} [vocation='magician']
+ * @param {'magician'|'archer'|'fighter'|'paladin'} [vocation='magician']
  * @param {string} [id]
  * @returns {object}
  */
@@ -364,7 +387,7 @@ export class GridMap {
 export class LightingSystem {
   /**
    * Computes the player's active field of view radius.
-   * Base vision: 3 tiles, Torch: 7 tiles, Light Spell: 6 tiles.
+   * Base vision: 10 tiles, Torch: 14 tiles, Light Spell: 12 tiles.
    * @param {object} player
    * @returns {number}
    */
@@ -372,9 +395,10 @@ export class LightingSystem {
     if (player.lightSpellTimer > 0) {
       return CONFIG.LIGHT_SPELL_RADIUS;
     }
-    const leftHand = player.paperdoll?.left_hand;
-    const rightHand = player.paperdoll?.right_hand;
-    if ((leftHand && leftHand.item_id === 'torch') || (rightHand && rightHand.item_id === 'torch')) {
+    const offHand = player.paperdoll?.off_hand || player.paperdoll?.left_hand;
+    const mainHand = player.paperdoll?.main_hand || player.paperdoll?.right_hand;
+    const hasTorchInAction = player.action_bar?.some(item => item?.item_id === 'torch');
+    if ((offHand && offHand.item_id === 'torch') || (mainHand && mainHand.item_id === 'torch') || hasTorchInAction) {
       return CONFIG.TORCH_LIGHT_RADIUS;
     }
     return CONFIG.BASE_LIGHT_RADIUS;
@@ -397,10 +421,7 @@ export class LightingSystem {
       }
     }
 
-    // 2. Cast light from ambient emitters
-    for (const emitter of ambientLights) {
-      LightingSystem.castLightCircle(gridMap, emitter.x, emitter.y, emitter.radius || CONFIG.AMBIENT_LIGHT_RADIUS);
-    }
+    // 2. Ambient room emitters disabled for player-only lighting test
 
     // 3. Cast light from player
     const playerRadius = LightingSystem.computePlayerRadius(player);
@@ -580,13 +601,13 @@ export class ProgressionSystem {
 
   /**
    * Computes active skill boosts and stat modifiers for a given vocation and level.
-   * @param {'magician'|'archer'} vocation
+   * @param {'magician'|'archer'|'fighter'|'paladin'} vocation
    * @param {number} level
    * @returns {{ damageMultiplier: number, bonusRange: number, bonusRegen: number }}
    */
   static computeSkillBoosts(vocation, level) {
     const levelDelta = Math.max(0, level - 1);
-    const damageStep = vocation === 'magician' ? 0.10 : 0.12;
+    const damageStep = vocation === 'magician' ? 0.10 : vocation === 'archer' ? 0.12 : vocation === 'fighter' ? 0.15 : 0.11;
 
     return {
       damageMultiplier: Number((1.0 + levelDelta * damageStep).toFixed(2)),
@@ -645,9 +666,19 @@ export class ProgressionSystem {
       player.xp = 0;
       player.xpToNextLevel = ProgressionSystem.getXpForLevel(player.level);
 
-      // Stat growth per level
-      const hpInc = player.vocation === 'magician' ? 8 : 14;
-      const manaInc = player.vocation === 'magician' ? 16 : 8;
+      // Stat growth per level for 4 vocations
+      let hpInc = 8;
+      let manaInc = 16;
+      if (player.vocation === 'archer') {
+        hpInc = 14;
+        manaInc = 8;
+      } else if (player.vocation === 'fighter') {
+        hpInc = 18;
+        manaInc = 4;
+      } else if (player.vocation === 'paladin') {
+        hpInc = 15;
+        manaInc = 10;
+      }
 
       player.max_hp += hpInc;
       player.max_mana += manaInc;
@@ -669,9 +700,7 @@ export class ProgressionSystem {
     player.skillBoosts = ProgressionSystem.computeSkillBoosts(player.vocation, player.level);
 
     const leveledUp = player.level > oldLevel;
-    const oldDmg = 1.0 + (oldLevel - 1) * (player.vocation === 'magician' ? 0.10 : 0.12);
-    const newDmg = player.skillBoosts.damageMultiplier;
-    const damagePercentGained = Math.round((newDmg - oldDmg) * 100);
+    const damagePercentGained = Math.round((player.skillBoosts.damageMultiplier - 1.0) * 100);
 
     return {
       leveledUp,
@@ -708,11 +737,45 @@ export class CombatSystem {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
+  static isNativeItem(item, vocation) {
+    if (!item) return false;
+    const itemId = item.item_id || '';
+    if (vocation === 'magician') {
+      return itemId.includes('wand') || itemId.includes('spark') || itemId.includes('beam') || itemId.includes('scepter') || itemId.includes('robe') || item.type === 'spell';
+    }
+    if (vocation === 'archer') {
+      return itemId.includes('bow') || itemId.includes('arrow') || itemId.includes('shot');
+    }
+    if (vocation === 'fighter') {
+      return itemId.includes('sword') || itemId.includes('slash') || itemId.includes('cleave') || itemId.includes('broadsword') || itemId.includes('fortify');
+    }
+    if (vocation === 'paladin') {
+      return itemId.includes('warhammer') || itemId.includes('holy') || itemId.includes('prayer') || itemId.includes('radiance') || itemId.includes('hammer');
+    }
+    return false;
+  }
+
+  static getVocationMultiplier(item, vocation) {
+    return CombatSystem.isNativeItem(item, vocation) ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0;
+  }
+
   static findArrowItem(player) {
-    for (let i = 0; i < player.backpack.length; i++) {
-      const item = player.backpack[i];
-      if (item && item.item_id === 'arrows' && item.quantity > 0) {
-        return { inBackpack: true, index: i, item };
+    // Check Action Bar first
+    if (player.action_bar) {
+      for (let i = 0; i < player.action_bar.length; i++) {
+        const item = player.action_bar[i];
+        if (item && item.item_id === 'arrows' && item.quantity > 0) {
+          return { inActionBar: true, index: i, item };
+        }
+      }
+    }
+    // Check Backpack
+    if (player.backpack) {
+      for (let i = 0; i < player.backpack.length; i++) {
+        const item = player.backpack[i];
+        if (item && item.item_id === 'arrows' && item.quantity > 0) {
+          return { inBackpack: true, index: i, item };
+        }
       }
     }
     return null;
@@ -724,7 +787,11 @@ export class CombatSystem {
 
     arrowSlot.item.quantity -= 1;
     if (arrowSlot.item.quantity <= 0) {
-      player.backpack[arrowSlot.index] = null;
+      if (arrowSlot.inActionBar) {
+        player.action_bar[arrowSlot.index] = null;
+      } else {
+        player.backpack[arrowSlot.index] = null;
+      }
     }
     return true;
   }
@@ -737,7 +804,7 @@ export class CombatSystem {
       return { success: false, message: 'Wand Spark is on cooldown.' };
     }
 
-    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const mult = (player.skillBoosts?.damageMultiplier || 1.0) * (player.vocation === 'magician' ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0);
     const bonusRng = player.skillBoosts?.bonusRange || 0;
 
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
@@ -772,7 +839,7 @@ export class CombatSystem {
 
     let defeatedMonsterId;
     let droppedLoot;
-    let message = `You hit ${target.name} with Wand Spark for ${damage} magic damage.`;
+    let message = `You hit ${target.name} with Wand Spark for ${damage} magic damage${player.vocation === 'magician' ? ' (2.5x Class Mastery!)' : ''}.`;
 
     if (target.hp <= 0) {
       defeatedMonsterId = target.id;
@@ -829,7 +896,7 @@ export class CombatSystem {
     if (!player.cooldowns) player.cooldowns = {};
     player.cooldowns.energy_beam = CONFIG.MAGICIAN_BEAM_COOLDOWN_SEC;
 
-    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const mult = (player.skillBoosts?.damageMultiplier || 1.0) * (player.vocation === 'magician' ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0);
     const bonusRng = player.skillBoosts?.bonusRange || 0;
     const beamRange = CONFIG.MAGICIAN_BEAM_RANGE + bonusRng;
 
@@ -890,7 +957,7 @@ export class CombatSystem {
 
     let msg = 'You unleashed Energy Beam!';
     if (hits > 0) {
-      msg += ` Pierced ${hits} enemy(s) for ${totalDamage} total damage.`;
+      msg += ` Pierced ${hits} enemy(s) for ${totalDamage} total damage${player.vocation === 'magician' ? ' (2.5x Mastery)' : ''}.`;
     }
 
     return {
@@ -911,7 +978,7 @@ export class CombatSystem {
       return { success: false, message: 'Bow Shot is on cooldown.' };
     }
 
-    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const mult = (player.skillBoosts?.damageMultiplier || 1.0) * (player.vocation === 'archer' ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0);
     const bonusRng = player.skillBoosts?.bonusRange || 0;
 
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
@@ -950,7 +1017,7 @@ export class CombatSystem {
 
     let defeatedMonsterId;
     let droppedLoot;
-    let message = `You fired an arrow at ${target.name} for ${damage} damage.`;
+    let message = `You fired an arrow at ${target.name} for ${damage} damage${player.vocation === 'archer' ? ' (2.5x Class Mastery!)' : ''}.`;
 
     if (target.hp <= 0) {
       defeatedMonsterId = target.id;
@@ -976,7 +1043,7 @@ export class CombatSystem {
       return { success: false, message: 'Power Shot is on cooldown.' };
     }
 
-    const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const mult = (player.skillBoosts?.damageMultiplier || 1.0) * (player.vocation === 'archer' ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0);
     const bonusRng = player.skillBoosts?.bonusRange || 0;
 
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
@@ -1015,7 +1082,7 @@ export class CombatSystem {
 
     let defeatedMonsterId;
     let droppedLoot;
-    let message = `Power Shot strikes ${target.name} for ${damage} heavy damage!`;
+    let message = `Power Shot strikes ${target.name} for ${damage} heavy damage${player.vocation === 'archer' ? ' (2.5x Class Mastery!)' : ''}!`;
 
     if (target.hp <= 0) {
       defeatedMonsterId = target.id;
@@ -1030,6 +1097,124 @@ export class CombatSystem {
       projectiles: [projectile],
       defeatedMonsterId,
       droppedLoot,
+    };
+  }
+
+  /**
+   * Executes Melee Slash for Fighter / Weapons.
+   */
+  static executeSlash(player, target, gridMap) {
+    if (player.cooldowns?.slash > 0) {
+      return { success: false, message: 'Slash is on cooldown.' };
+    }
+
+    const dist = Math.hypot(target.x - player.x, target.y - player.y);
+    if (dist > 1.5) {
+      return { success: false, message: 'Target is too far for melee strike (adjacent only).' };
+    }
+
+    if (!player.cooldowns) player.cooldowns = {};
+    player.cooldowns.slash = CONFIG.FIGHTER_SLASH_COOLDOWN_SEC;
+
+    const mult = (player.skillBoosts?.damageMultiplier || 1.0) * (player.vocation === 'fighter' ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0);
+    const baseDmg = CombatSystem.randomBetween(CONFIG.FIGHTER_SLASH_DAMAGE_MIN, CONFIG.FIGHTER_SLASH_DAMAGE_MAX);
+    const damage = Math.round(baseDmg * mult);
+    target.hp -= damage;
+
+    let defeatedMonsterId;
+    let droppedLoot;
+    let message = `You slashed ${target.name} for ${damage} physical damage${player.vocation === 'fighter' ? ' (2.5x Class Mastery!)' : ''}.`;
+
+    if (target.hp <= 0) {
+      defeatedMonsterId = target.id;
+      droppedLoot = CombatSystem.generateMonsterLoot(target);
+      message += ` ${target.name} was slain!`;
+    }
+
+    return {
+      success: true,
+      message,
+      damageDealt: damage,
+      defeatedMonsterId,
+      droppedLoot,
+    };
+  }
+
+  /**
+   * Executes Holy Strike for Paladin.
+   */
+  static executeHolyStrike(player, target, gridMap) {
+    if (player.cooldowns?.holy_strike > 0) {
+      return { success: false, message: 'Holy Strike is on cooldown.' };
+    }
+
+    if (player.mana < CONFIG.PALADIN_HOLY_STRIKE_MANA_COST) {
+      return { success: false, message: 'Not enough Mana for Holy Strike.' };
+    }
+
+    const dist = Math.hypot(target.x - player.x, target.y - player.y);
+    if (dist > 1.5) {
+      return { success: false, message: 'Target is too far for Holy Strike.' };
+    }
+
+    player.mana -= CONFIG.PALADIN_HOLY_STRIKE_MANA_COST;
+    if (!player.cooldowns) player.cooldowns = {};
+    player.cooldowns.holy_strike = CONFIG.PALADIN_HOLY_STRIKE_COOLDOWN_SEC;
+
+    const mult = (player.skillBoosts?.damageMultiplier || 1.0) * (player.vocation === 'paladin' ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0);
+    const baseDmg = CombatSystem.randomBetween(CONFIG.PALADIN_HOLY_STRIKE_DAMAGE_MIN, CONFIG.PALADIN_HOLY_STRIKE_DAMAGE_MAX);
+    const damage = Math.round(baseDmg * mult);
+    target.hp -= damage;
+
+    let defeatedMonsterId;
+    let droppedLoot;
+    let message = `Holy Strike smites ${target.name} for ${damage} holy damage${player.vocation === 'paladin' ? ' (2.5x Class Mastery!)' : ''}.`;
+
+    if (target.hp <= 0) {
+      defeatedMonsterId = target.id;
+      droppedLoot = CombatSystem.generateMonsterLoot(target);
+      message += ` ${target.name} was slain!`;
+    }
+
+    return {
+      success: true,
+      message,
+      damageDealt: damage,
+      defeatedMonsterId,
+      droppedLoot,
+    };
+  }
+
+  /**
+   * Executes Healing Prayer for Paladin.
+   */
+  static executeHealingPrayer(player) {
+    if (player.cooldowns?.healing_prayer > 0) {
+      return { success: false, message: 'Healing Prayer is on cooldown.' };
+    }
+
+    if (player.mana < CONFIG.PALADIN_HEAL_MANA_COST) {
+      return { success: false, message: 'Not enough Mana for Healing Prayer.' };
+    }
+
+    if (player.hp >= player.max_hp) {
+      return { success: false, message: 'Health is already full!' };
+    }
+
+    player.mana -= CONFIG.PALADIN_HEAL_MANA_COST;
+    if (!player.cooldowns) player.cooldowns = {};
+    player.cooldowns.healing_prayer = CONFIG.PALADIN_HEAL_COOLDOWN_SEC;
+
+    const mult = player.vocation === 'paladin' ? CONFIG.NATIVE_CLASS_MULTIPLIER : 1.0;
+    const baseHeal = CombatSystem.randomBetween(CONFIG.PALADIN_HEAL_MIN, CONFIG.PALADIN_HEAL_MAX);
+    const healAmount = Math.round(baseHeal * mult);
+    const restored = Math.min(healAmount, player.max_hp - player.hp);
+    player.hp = Math.min(player.max_hp, player.hp + healAmount);
+
+    return {
+      success: true,
+      message: `Healing Prayer channeled! Restored +${restored} HP (${player.hp}/${player.max_hp})${player.vocation === 'paladin' ? ' (2.5x Mastery!)' : ''}.`,
+      healAmount: restored,
     };
   }
 
@@ -1420,7 +1605,7 @@ export class InventorySystem {
   }
 
   /**
-   * Picks up top item on player's current tile into 6-slot backpack.
+   * Automatically picks up top item into lowest empty Action Slot, then Backpack.
    */
   static pickUpItem(player, gridMap) {
     const tileItems = gridMap.getItems(player.x, player.y);
@@ -1432,8 +1617,23 @@ export class InventorySystem {
     const maxStack = InventorySystem.getMaxStack(groundItem.item_id);
     let totalPickedUp = 0;
 
-    // 1. If stackable, try merging into existing backpack slots
-    if (maxStack > 1) {
+    // 1. Stack into Action Bar if stackable
+    if (maxStack > 1 && player.action_bar) {
+      for (let i = 0; i < player.action_bar.length; i++) {
+        const slotItem = player.action_bar[i];
+        if (slotItem && slotItem.item_id === groundItem.item_id && slotItem.quantity < maxStack) {
+          const space = maxStack - slotItem.quantity;
+          const toAdd = Math.min(space, groundItem.quantity);
+          slotItem.quantity += toAdd;
+          groundItem.quantity -= toAdd;
+          totalPickedUp += toAdd;
+          if (groundItem.quantity <= 0) break;
+        }
+      }
+    }
+
+    // 2. Stack into Backpack if stackable
+    if (maxStack > 1 && groundItem.quantity > 0 && player.backpack) {
       for (let i = 0; i < player.backpack.length; i++) {
         const slotItem = player.backpack[i];
         if (slotItem && slotItem.item_id === groundItem.item_id && slotItem.quantity < maxStack) {
@@ -1442,25 +1642,43 @@ export class InventorySystem {
           slotItem.quantity += toAdd;
           groundItem.quantity -= toAdd;
           totalPickedUp += toAdd;
-
           if (groundItem.quantity <= 0) break;
         }
       }
     }
 
-    // 2. If remainder exists, place into empty backpack slots
-    while (groundItem.quantity > 0) {
-      const emptyIndex = player.backpack.findIndex(slot => slot === null);
-      if (emptyIndex === -1) break;
+    // 3. Place into lowest empty Action Slot (0..9)
+    if (player.action_bar) {
+      while (groundItem.quantity > 0) {
+        const emptyIndex = player.action_bar.findIndex(slot => slot === null);
+        if (emptyIndex === -1) break;
 
-      const toMove = Math.min(maxStack, groundItem.quantity);
-      groundItem.quantity -= toMove;
-      totalPickedUp += toMove;
+        const toMove = Math.min(maxStack, groundItem.quantity);
+        groundItem.quantity -= toMove;
+        totalPickedUp += toMove;
 
-      player.backpack[emptyIndex] = {
-        ...groundItem,
-        quantity: toMove,
-      };
+        player.action_bar[emptyIndex] = {
+          ...groundItem,
+          quantity: toMove,
+        };
+      }
+    }
+
+    // 4. Place into lowest empty Backpack Slot (0..5)
+    if (player.backpack) {
+      while (groundItem.quantity > 0) {
+        const emptyIndex = player.backpack.findIndex(slot => slot === null);
+        if (emptyIndex === -1) break;
+
+        const toMove = Math.min(maxStack, groundItem.quantity);
+        groundItem.quantity -= toMove;
+        totalPickedUp += toMove;
+
+        player.backpack[emptyIndex] = {
+          ...groundItem,
+          quantity: toMove,
+        };
+      }
     }
 
     if (groundItem.quantity <= 0) {
@@ -1468,7 +1686,7 @@ export class InventorySystem {
     }
 
     if (totalPickedUp === 0) {
-      return { success: false, message: 'Backpack is full!' };
+      return { success: false, message: 'Action Slots & Backpack are full!' };
     }
 
     return {
@@ -1478,20 +1696,18 @@ export class InventorySystem {
     };
   }
 
-  /**
-   * Drops an item from the backpack onto the dungeon floor.
-   */
-  static dropItem(player, slotIndex, gridMap) {
-    if (slotIndex < 0 || slotIndex >= player.backpack.length) {
-      return { success: false, message: 'Invalid backpack slot.' };
+  static dropItem(player, source, slotIndex, gridMap) {
+    const list = source === 'action_bar' ? player.action_bar : player.backpack;
+    if (!list || slotIndex < 0 || slotIndex >= list.length) {
+      return { success: false, message: 'Invalid slot index.' };
     }
 
-    const item = player.backpack[slotIndex];
+    const item = list[slotIndex];
     if (!item) {
       return { success: false, message: 'Slot is empty.' };
     }
 
-    player.backpack[slotIndex] = null;
+    list[slotIndex] = null;
     gridMap.addItem(player.x, player.y, item);
 
     return {
@@ -1501,115 +1717,91 @@ export class InventorySystem {
     };
   }
 
-  /**
-   * Equips an item from a backpack slot into the matching paperdoll slot.
-   */
-  static equipItem(player, backpackSlotIndex) {
-    if (backpackSlotIndex < 0 || backpackSlotIndex >= player.backpack.length) {
-      return { success: false, message: 'Invalid backpack slot.' };
+  static equipItem(player, source, slotIndex) {
+    const list = source === 'action_bar' ? player.action_bar : player.backpack;
+    if (!list || slotIndex < 0 || slotIndex >= list.length) {
+      return { success: false, message: 'Invalid slot.' };
     }
 
-    const item = player.backpack[backpackSlotIndex];
+    const item = list[slotIndex];
     if (!item) {
       return { success: false, message: 'No item in selected slot.' };
     }
 
     let targetSlot = null;
     if (item.type === 'weapon') {
-      targetSlot = 'right_hand';
-    } else if (item.type === 'offhand' || item.item_id === 'torch') {
-      targetSlot = 'left_hand';
+      targetSlot = 'main_hand';
+    } else if (item.type === 'offhand' || item.item_id === 'torch' || item.item_id === 'buckler') {
+      targetSlot = 'off_hand';
     } else if (item.type === 'armor') {
       targetSlot = 'armor';
+    } else if (item.type === 'relic') {
+      targetSlot = 'relic';
     } else {
       return { success: false, message: `${item.name} cannot be equipped.` };
     }
 
     if (!player.paperdoll) {
-      player.paperdoll = { right_hand: null, left_hand: null, armor: null };
+      player.paperdoll = { main_hand: null, off_hand: null, armor: null, relic: null };
     }
 
     const currentlyEquipped = player.paperdoll[targetSlot];
 
-    // If equipping from stack > 1
     if (item.quantity > 1) {
       item.quantity -= 1;
-      player.paperdoll[targetSlot] = {
-        ...item,
-        quantity: 1,
-      };
+      player.paperdoll[targetSlot] = { ...item, quantity: 1 };
       if (currentlyEquipped) {
-        const emptyIdx = player.backpack.findIndex(s => s === null);
+        const emptyIdx = list.findIndex(s => s === null);
         if (emptyIdx !== -1) {
-          player.backpack[emptyIdx] = currentlyEquipped;
+          list[emptyIdx] = currentlyEquipped;
         } else {
           item.quantity += 1;
           player.paperdoll[targetSlot] = currentlyEquipped;
-          return { success: false, message: 'Cannot swap: Backpack is full!' };
+          return { success: false, message: 'Cannot swap: Inventory is full!' };
         }
       }
     } else {
       player.paperdoll[targetSlot] = item;
-      player.backpack[backpackSlotIndex] = currentlyEquipped;
+      list[slotIndex] = currentlyEquipped;
     }
-
-    const equipMsg = item.item_id === 'torch'
-      ? `Lit and equipped Wooden Torch in ${targetSlot.replace('_', ' ')}!`
-      : `Equipped ${item.name} in ${targetSlot.replace('_', ' ')}.`;
 
     return {
       success: true,
-      message: equipMsg,
+      message: `Equipped ${item.name} in ${targetSlot.replace('_', ' ')}.`,
       item: player.paperdoll[targetSlot],
     };
   }
 
-  /**
-   * Unequips an item from the paperdoll into the backpack.
-   */
   static unequipItem(player, slotName) {
     if (!player.paperdoll || !player.paperdoll[slotName]) {
       return { success: false, message: `No item equipped in ${slotName.replace('_', ' ')}.` };
     }
 
     const item = player.paperdoll[slotName];
-    const maxStack = InventorySystem.getMaxStack(item.item_id);
 
-    if (maxStack > 1) {
-      for (let i = 0; i < player.backpack.length; i++) {
-        const slotItem = player.backpack[i];
-        if (slotItem && slotItem.item_id === item.item_id && slotItem.quantity < maxStack) {
-          const space = maxStack - slotItem.quantity;
-          const toAdd = Math.min(space, item.quantity);
-          slotItem.quantity += toAdd;
-          player.paperdoll[slotName] = null;
-          return {
-            success: true,
-            message: `Unequipped ${item.name} and merged into backpack (total: ${slotItem.quantity}).`,
-            item: slotItem,
-          };
-        }
+    // Try placing into Action Bar first
+    if (player.action_bar) {
+      const emptyActionIdx = player.action_bar.findIndex(s => s === null);
+      if (emptyActionIdx !== -1) {
+        player.paperdoll[slotName] = null;
+        player.action_bar[emptyActionIdx] = item;
+        return { success: true, message: `Unequipped ${item.name} to Action Slot ${emptyActionIdx + 1}.`, item };
       }
     }
 
-    const emptyIndex = player.backpack.findIndex(slot => slot === null);
-    if (emptyIndex === -1) {
-      return { success: false, message: 'Cannot unequip: Backpack is full!' };
+    // Try placing into Backpack
+    if (player.backpack) {
+      const emptyBpIdx = player.backpack.findIndex(s => s === null);
+      if (emptyBpIdx !== -1) {
+        player.paperdoll[slotName] = null;
+        player.backpack[emptyBpIdx] = item;
+        return { success: true, message: `Unequipped ${item.name} to Backpack Slot ${emptyBpIdx + 1}.`, item };
+      }
     }
 
-    player.paperdoll[slotName] = null;
-    player.backpack[emptyIndex] = item;
-
-    return {
-      success: true,
-      message: `Unequipped ${item.name}.`,
-      item,
-    };
+    return { success: false, message: 'Cannot unequip: Inventory is full!' };
   }
 
-  /**
-   * Uses or consumes an item from the backpack slot.
-   */
   static useBackpackItem(player, slotIndex) {
     if (slotIndex < 0 || slotIndex >= player.backpack.length) {
       return { success: false, message: 'Invalid backpack slot.' };
@@ -1630,54 +1822,11 @@ export class InventorySystem {
       });
     }
 
-    if (item.type === 'weapon' || item.type === 'offhand' || item.type === 'armor' || item.item_id === 'torch') {
-      return InventorySystem.equipItem(player, slotIndex);
+    if (item.type === 'weapon' || item.type === 'offhand' || item.type === 'armor' || item.type === 'relic' || item.item_id === 'torch') {
+      return InventorySystem.equipItem(player, 'backpack', slotIndex);
     }
 
     return { success: false, message: `Cannot use ${item.name}.` };
-  }
-
-  /**
-   * Uses an item directly from the dungeon floor tile.
-   */
-  static useGroundItem(player, gridMap, itemIndex = null) {
-    const tile = gridMap.getTile(player.x, player.y);
-    if (!tile || tile.items.length === 0) {
-      return { success: false, message: 'No item on ground to use.' };
-    }
-
-    const idx = itemIndex !== null && itemIndex !== undefined ? itemIndex : tile.items.length - 1;
-    const item = tile.items[idx];
-    if (!item) {
-      return { success: false, message: 'Item not found on floor.' };
-    }
-
-    if (item.type === 'consumable') {
-      return InventorySystem.consumeItem(player, item, () => {
-        if (item.quantity > 1) {
-          item.quantity -= 1;
-        } else {
-          gridMap.removeItem(player.x, player.y, idx);
-        }
-      });
-    }
-
-    if (item.item_id === 'torch') {
-      const prevLeft = player.paperdoll?.left_hand;
-      if (!player.paperdoll) player.paperdoll = { right_hand: null, left_hand: null, armor: null };
-      player.paperdoll.left_hand = item;
-      gridMap.removeItem(player.x, player.y, idx);
-      if (prevLeft) {
-        gridMap.addItem(player.x, player.y, prevLeft);
-      }
-      return {
-        success: true,
-        message: 'Lit and equipped Wooden Torch from floor!',
-        item,
-      };
-    }
-
-    return { success: false, message: `Cannot use ${item.name} directly from floor. Pick it up first.` };
   }
 
   static consumeItem(player, item, removeCallback) {
@@ -1712,5 +1861,699 @@ export class InventorySystem {
     }
 
     return { success: false, message: `Unknown consumable item: ${item.name}` };
+  }
+}
+
+// ============================================================================
+// 7. FateGrantSystem
+// ============================================================================
+
+export class FateGrantSystem {
+  static CARD_DATABASE = [
+    // Magician Cards
+    {
+      id: 'card_wand_spark',
+      name: 'Wand Spark',
+      rarity: 'common',
+      icon: '✨',
+      description: 'Cast instant radiant bolt for 12–16 magic damage.',
+      statBonusText: '12–16 Dmg (0 MP)',
+      vocationAffinity: 'magician',
+      item: {
+        item_id: 'spell_wand_spark',
+        name: 'Wand Spark',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 14,
+        manaCost: 0,
+        cooldown: 1.0,
+        icon: '✨',
+      },
+    },
+    {
+      id: 'card_light_spell',
+      name: 'Radiant Light Spell',
+      rarity: 'common',
+      icon: '💡',
+      description: 'Expand illuminated line-of-sight to 12 tiles for 30 seconds.',
+      statBonusText: '12-Tile Vision (15 MP)',
+      vocationAffinity: 'magician',
+      item: {
+        item_id: 'spell_light',
+        name: 'Light Spell',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 12,
+        manaCost: 15,
+        cooldown: 5.0,
+        icon: '💡',
+      },
+    },
+    {
+      id: 'card_energy_beam',
+      name: 'Arcane Energy Beam',
+      rarity: 'rare',
+      icon: '⚡',
+      description: 'Unleash a piercing linear ray striking all enemies across 4 tiles for 30–40 damage.',
+      statBonusText: '30–40 Linear Dmg (30 MP)',
+      vocationAffinity: 'magician',
+      item: {
+        item_id: 'spell_energy_beam',
+        name: 'Energy Beam',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 35,
+        manaCost: 30,
+        cooldown: 3.0,
+        icon: '⚡',
+      },
+    },
+    {
+      id: 'card_apprentice_wand',
+      name: 'Apprentice Wand',
+      rarity: 'common',
+      icon: '🪄',
+      description: 'Carved hazel wand boosting magic projectile accuracy and spell focus.',
+      statBonusText: '+3 Spell Power',
+      vocationAffinity: 'magician',
+      item: {
+        item_id: 'apprentice_wand',
+        name: 'Apprentice Wand',
+        type: 'weapon',
+        quantity: 1,
+        stat_bonus: 3,
+        icon: '🪄',
+      },
+    },
+    {
+      id: 'card_astral_scepter',
+      name: 'Astral Scepter',
+      rarity: 'epic',
+      icon: '🔮',
+      description: 'Ancient scepter pulsating with cosmic resonance, enhancing all elemental spell damage.',
+      statBonusText: '+8 Spell Power',
+      vocationAffinity: 'magician',
+      item: {
+        item_id: 'astral_scepter',
+        name: 'Astral Scepter',
+        type: 'weapon',
+        quantity: 1,
+        stat_bonus: 8,
+        icon: '🔮',
+      },
+    },
+
+    // Archer Cards
+    {
+      id: 'card_bow_shot',
+      name: 'Hunting Bow & Shot',
+      rarity: 'common',
+      icon: '🏹',
+      description: 'Fire a precision physical arrow at distant monsters within line-of-sight (14–18 damage).',
+      statBonusText: '14–18 Dmg (1 Arrow)',
+      vocationAffinity: 'archer',
+      item: {
+        item_id: 'spell_bow_shot',
+        name: 'Bow Shot',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 16,
+        cooldown: 1.0,
+        icon: '🏹',
+      },
+    },
+    {
+      id: 'card_power_shot',
+      name: 'Power Shot',
+      rarity: 'rare',
+      icon: '🎯',
+      description: 'Draw bow to full tension for a devastating burst strike dealing 32–42 damage.',
+      statBonusText: '32–42 Dmg (4s CD)',
+      vocationAffinity: 'archer',
+      item: {
+        item_id: 'spell_power_shot',
+        name: 'Power Shot',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 37,
+        cooldown: 4.0,
+        icon: '🎯',
+      },
+    },
+    {
+      id: 'card_quiver_arrows',
+      name: 'Quiver of Arrows',
+      rarity: 'common',
+      icon: '📦',
+      description: 'Bundle of 15 fletched iron-tipped dungeon arrows.',
+      statBonusText: '15 Arrows',
+      vocationAffinity: 'archer',
+      item: {
+        item_id: 'arrows',
+        name: 'Arrows',
+        type: 'ammo',
+        quantity: 15,
+        stat_bonus: 0,
+        icon: '🏹',
+      },
+    },
+    {
+      id: 'card_composite_bow',
+      name: 'Composite Longbow',
+      rarity: 'epic',
+      icon: '🏹',
+      description: 'High-draw recurve bow extending attack range and piercing through armor.',
+      statBonusText: '+6 Ranged Power',
+      vocationAffinity: 'archer',
+      item: {
+        item_id: 'composite_bow',
+        name: 'Composite Longbow',
+        type: 'weapon',
+        quantity: 1,
+        stat_bonus: 6,
+        icon: '🏹',
+      },
+    },
+
+    // Fighter Cards
+    {
+      id: 'card_iron_shortsword',
+      name: 'Iron Shortsword & Slash',
+      rarity: 'common',
+      icon: '⚔️',
+      description: 'Swift melee blade strike dealing 16–22 physical damage to adjacent foes.',
+      statBonusText: '16–22 Melee Dmg',
+      vocationAffinity: 'fighter',
+      item: {
+        item_id: 'spell_slash',
+        name: 'Sword Slash',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 18,
+        cooldown: 0.8,
+        icon: '⚔️',
+      },
+    },
+    {
+      id: 'card_fighter_cleave',
+      name: 'Whirlwind Cleave',
+      rarity: 'rare',
+      icon: '🌪️',
+      description: 'Sweeping wide arc slashing all adjacent monsters for 24–34 physical damage.',
+      statBonusText: '24–34 Multi Dmg (10 MP)',
+      vocationAffinity: 'fighter',
+      item: {
+        item_id: 'spell_cleave',
+        name: 'Sweeping Cleave',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 28,
+        manaCost: 10,
+        cooldown: 2.5,
+        icon: '🌪️',
+      },
+    },
+    {
+      id: 'card_fighter_fortify',
+      name: 'Shield Wall / Fortify',
+      rarity: 'common',
+      icon: '🛡️',
+      description: 'Assume an unyielding defensive stance reducing incoming damage by 50% for 10 seconds.',
+      statBonusText: '-50% Dmg Taken (15 MP)',
+      vocationAffinity: 'fighter',
+      item: {
+        item_id: 'spell_fortify',
+        name: 'Fortify Stance',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 50,
+        manaCost: 15,
+        cooldown: 12.0,
+        icon: '🛡️',
+      },
+    },
+    {
+      id: 'card_broadsword',
+      name: 'Tempered Broadsword',
+      rarity: 'epic',
+      icon: '🗡️',
+      description: 'Heavy double-edged steel broadsword delivering bone-crushing melee swings.',
+      statBonusText: '+7 Melee Power',
+      vocationAffinity: 'fighter',
+      item: {
+        item_id: 'tempered_broadsword',
+        name: 'Tempered Broadsword',
+        type: 'weapon',
+        quantity: 1,
+        stat_bonus: 7,
+        icon: '🗡️',
+      },
+    },
+
+    // Paladin Cards
+    {
+      id: 'card_holy_strike',
+      name: 'Holy Warhammer Strike',
+      rarity: 'common',
+      icon: '🔨',
+      description: 'Smite an adjacent monster with consecrated golden power for 18–26 holy damage.',
+      statBonusText: '18–26 Holy Dmg (10 MP)',
+      vocationAffinity: 'paladin',
+      item: {
+        item_id: 'spell_holy_strike',
+        name: 'Holy Strike',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 22,
+        manaCost: 10,
+        cooldown: 1.2,
+        icon: '🔨',
+      },
+    },
+    {
+      id: 'card_healing_prayer',
+      name: 'Healing Prayer',
+      rarity: 'common',
+      icon: '✨',
+      description: 'Channel sacred light to restore 35–50 Health points immediately.',
+      statBonusText: 'Heal 35–50 HP (25 MP)',
+      vocationAffinity: 'paladin',
+      item: {
+        item_id: 'spell_healing_prayer',
+        name: 'Healing Prayer',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 42,
+        manaCost: 25,
+        cooldown: 6.0,
+        icon: '💖',
+      },
+    },
+    {
+      id: 'card_holy_radiance',
+      name: 'Holy Radiance',
+      rarity: 'rare',
+      icon: '☀️',
+      description: 'Unleash a burst of sanctified radiance, damaging all surrounding undead monsters for 20–30 damage.',
+      statBonusText: '20–30 Area Dmg (30 MP)',
+      vocationAffinity: 'paladin',
+      item: {
+        item_id: 'spell_holy_radiance',
+        name: 'Holy Radiance',
+        type: 'spell',
+        quantity: 1,
+        stat_bonus: 25,
+        manaCost: 30,
+        cooldown: 8.0,
+        icon: '☀️',
+      },
+    },
+    {
+      id: 'card_radiant_warhammer',
+      name: 'Consecrated Warhammer',
+      rarity: 'epic',
+      icon: '⚒️',
+      description: 'Heavy gilded maul blessed by the High Templars.',
+      statBonusText: '+6 Holy Power, +3 Armor',
+      vocationAffinity: 'paladin',
+      item: {
+        item_id: 'consecrated_warhammer',
+        name: 'Consecrated Warhammer',
+        type: 'weapon',
+        quantity: 1,
+        stat_bonus: 6,
+        icon: '⚒️',
+      },
+    },
+
+    // Universal Consumables, Armor, Relics & Tools
+    {
+      id: 'card_health_potion_x3',
+      name: 'Health Potion Stash',
+      rarity: 'common',
+      icon: '🧪',
+      description: 'A set of 3 crimson restorative draughts (restores +30 HP each).',
+      statBonusText: '+30 HP x 3',
+      item: {
+        item_id: 'health_potion',
+        name: 'Health Potion',
+        type: 'consumable',
+        quantity: 3,
+        stat_bonus: 30,
+        icon: '🧪',
+      },
+    },
+    {
+      id: 'card_mana_potion_x3',
+      name: 'Mana Potion Stash',
+      rarity: 'common',
+      icon: '🔷',
+      description: 'A set of 3 cobalt ether draughts (restores +40 Mana each).',
+      statBonusText: '+40 MP x 3',
+      item: {
+        item_id: 'mana_potion',
+        name: 'Mana Potion',
+        type: 'consumable',
+        quantity: 3,
+        stat_bonus: 40,
+        icon: '🔷',
+      },
+    },
+    {
+      id: 'card_wooden_torch_x3',
+      name: 'Ever-Burning Torches',
+      rarity: 'common',
+      icon: '🔥',
+      description: 'A bundle of 3 pitch-soaked dungeon torches illuminating 14 tiles when held.',
+      statBonusText: '+14 Light Radius x 3',
+      item: {
+        item_id: 'torch',
+        name: 'Wooden Torch',
+        type: 'offhand',
+        quantity: 3,
+        stat_bonus: 14,
+        icon: '🔥',
+      },
+    },
+    {
+      id: 'card_iron_buckler',
+      name: 'Reinforced Buckler',
+      rarity: 'common',
+      icon: '🛡️',
+      description: 'A sturdy iron-rimmed off-hand buckler absorbing blows.',
+      statBonusText: '+4 Armor',
+      item: {
+        item_id: 'buckler',
+        name: 'Reinforced Buckler',
+        type: 'offhand',
+        quantity: 1,
+        stat_bonus: 4,
+        icon: '🛡️',
+      },
+    },
+    {
+      id: 'card_plate_armor',
+      name: 'Knight Plate Body',
+      rarity: 'rare',
+      icon: '🦺',
+      description: 'Heavy interlocking steel cuirass protecting vital organs from lethal damage.',
+      statBonusText: '+8 Armor',
+      item: {
+        item_id: 'plate_armor',
+        name: 'Knight Plate Armor',
+        type: 'armor',
+        quantity: 1,
+        stat_bonus: 8,
+        icon: '🦺',
+      },
+    },
+    {
+      id: 'card_relic_luminous_amulet',
+      name: 'Luminous Relic Amulet',
+      rarity: 'epic',
+      icon: '📿',
+      description: 'Sacred luminescent charm boosting max health, mana, and ambient glow.',
+      statBonusText: '+20 Max HP/MP',
+      item: {
+        item_id: 'relic_luminous_amulet',
+        name: 'Luminous Amulet',
+        type: 'relic',
+        quantity: 1,
+        stat_bonus: 20,
+        icon: '📿',
+      },
+    },
+    {
+      id: 'card_relic_champions_crest',
+      name: "Champion's Crest",
+      rarity: 'legendary',
+      icon: '👑',
+      description: 'Ancient artifact of legend that enhances all combat damage by +20%.',
+      statBonusText: '+20% Damage, +15 Max HP',
+      item: {
+        item_id: 'relic_champions_crest',
+        name: "Champion's Crest",
+        type: 'relic',
+        quantity: 1,
+        stat_bonus: 15,
+        icon: '👑',
+      },
+    },
+  ];
+
+  static generateDraftOffer(vocation, level = 1) {
+    const pool = [...FateGrantSystem.CARD_DATABASE];
+    const alignedCards = pool.filter(c => c.vocationAffinity === vocation);
+    const otherCards = pool.filter(c => !c.vocationAffinity || c.vocationAffinity !== vocation);
+
+    FateGrantSystem.shuffle(alignedCards);
+    FateGrantSystem.shuffle(otherCards);
+
+    const chosenCards = [];
+
+    if (level === 1) {
+      const alignedCount = Math.min(2, alignedCards.length);
+      for (let i = 0; i < alignedCount; i++) {
+        chosenCards.push(alignedCards[i]);
+      }
+      const remainingPool = [...alignedCards.slice(alignedCount), ...otherCards];
+      FateGrantSystem.shuffle(remainingPool);
+      for (const card of remainingPool) {
+        if (chosenCards.length >= 5) break;
+        if (!chosenCards.some(c => c.id === card.id)) {
+          chosenCards.push(card);
+        }
+      }
+    } else {
+      const allShuffled = [...pool];
+      FateGrantSystem.shuffle(allShuffled);
+      for (const card of allShuffled) {
+        if (chosenCards.length >= 5) break;
+        if (!chosenCards.some(c => c.id === card.id)) {
+          chosenCards.push(card);
+        }
+      }
+    }
+
+    return {
+      cards: chosenCards.slice(0, 5),
+      requiredSelections: { min: 1, max: 2 },
+    };
+  }
+
+  static applyDraftedCards(player, cards, gridMap) {
+    const result = {
+      addedToHotbar: [],
+      addedToBackpack: [],
+      droppedOnFloor: [],
+    };
+
+    for (const card of cards) {
+      const itemToPlace = { ...card.item };
+
+      // 1. Try placing into lowest empty Action Slot (0..9)
+      let placedInHotbar = false;
+      if (player.action_bar) {
+        for (let i = 0; i < player.action_bar.length; i++) {
+          if (player.action_bar[i] === null) {
+            player.action_bar[i] = itemToPlace;
+            result.addedToHotbar.push(`${itemToPlace.name} (Slot ${i + 1})`);
+            placedInHotbar = true;
+            break;
+          }
+        }
+      }
+
+      // If drafting a bow weapon/spell, grant starter arrows if none exist
+      if (itemToPlace.item_id.includes('bow')) {
+        const hasArrows = player.action_bar?.some(s => s?.item_id === 'arrows') || player.backpack?.some(s => s?.item_id === 'arrows');
+        if (!hasArrows && player.backpack) {
+          const arrowItem = {
+            item_id: 'arrows',
+            name: 'Arrows',
+            type: 'ammo',
+            quantity: 20,
+            stat_bonus: 0,
+            icon: '🏹',
+          };
+          const emptyBp = player.backpack.findIndex(s => s === null);
+          if (emptyBp !== -1) {
+            player.backpack[emptyBp] = arrowItem;
+            result.addedToBackpack.push('Starter Arrows (x20)');
+          }
+        }
+      }
+
+      if (placedInHotbar) continue;
+
+      // 2. Try placing into lowest empty Backpack Slot (0..5)
+      let placedInBackpack = false;
+      if (player.backpack) {
+        for (let i = 0; i < player.backpack.length; i++) {
+          if (player.backpack[i] === null) {
+            player.backpack[i] = itemToPlace;
+            result.addedToBackpack.push(`${itemToPlace.name} (Backpack ${i + 1})`);
+            placedInBackpack = true;
+            break;
+          }
+        }
+      }
+
+      if (placedInBackpack) continue;
+
+      // 3. Drop onto floor
+      if (gridMap) {
+        gridMap.addItem(player.x, player.y, itemToPlace);
+        result.droppedOnFloor.push(itemToPlace.name);
+      }
+    }
+
+    return result;
+  }
+
+  static shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+}
+
+// ============================================================================
+// 8. GestureEngine
+// ============================================================================
+
+export class GestureEngine {
+  constructor(onGesture, onChargeUpdate) {
+    this.onGestureCallback = onGesture || (() => {});
+    this.onChargeUpdateCallback = onChargeUpdate || (() => {});
+    this.trackers = new Map();
+    this.animationFrameId = null;
+
+    for (let i = 0; i < CONFIG.ACTION_BAR_SLOTS; i++) {
+      this.trackers.set(i, {
+        isDown: false,
+        pressTimestamp: 0,
+        lastReleaseTimestamp: 0,
+        chargeRatio: 0,
+      });
+    }
+
+    this.startChargeLoop();
+  }
+
+  static keyToSlotIndex(key) {
+    if (key >= '1' && key <= '9') {
+      return parseInt(key, 10) - 1; // '1' -> 0, ..., '9' -> 8
+    }
+    if (key === '0') {
+      return 9; // '0' -> 9
+    }
+    return null;
+  }
+
+  static slotIndexToHotkey(slotIndex) {
+    if (slotIndex >= 0 && slotIndex <= 8) {
+      return `${slotIndex + 1}`;
+    }
+    if (slotIndex === 9) {
+      return '0';
+    }
+    return '';
+  }
+
+  handleInputDown(slotIndex) {
+    const tracker = this.trackers.get(slotIndex);
+    if (!tracker) return;
+
+    if (tracker.isDown) return; // Prevent key repeat oscillation
+
+    const now = performance.now();
+    tracker.isDown = true;
+    tracker.pressTimestamp = now;
+    tracker.chargeRatio = 0;
+  }
+
+  handleInputUp(slotIndex) {
+    const tracker = this.trackers.get(slotIndex);
+    if (!tracker || !tracker.isDown) return;
+
+    const now = performance.now();
+    const duration = now - tracker.pressTimestamp;
+    tracker.isDown = false;
+    const previousRelease = tracker.lastReleaseTimestamp;
+    tracker.lastReleaseTimestamp = now;
+
+    // Reset charge visual
+    tracker.chargeRatio = 0;
+    this.onChargeUpdateCallback(slotIndex, 0);
+
+    // Double-tap check: if tap duration < TAP_MAX_MS and previousRelease was within DOUBLE_TAP_MAX_MS
+    if (duration < CONFIG.TAP_MAX_MS && previousRelease > 0 && (now - previousRelease) <= CONFIG.DOUBLE_TAP_MAX_MS) {
+      this.onGestureCallback({
+        slotIndex,
+        gesture: 'double_tap',
+        chargeDurationMs: duration,
+        chargeRatio: 1.0,
+      });
+      tracker.lastReleaseTimestamp = 0;
+      return;
+    }
+
+    // Hold / Charge check: held >= HOLD_MIN_MS
+    if (duration >= CONFIG.HOLD_MIN_MS) {
+      const chargeRatio = Math.min(
+        1.0,
+        Math.max(0.1, (duration - CONFIG.HOLD_MIN_MS) / (CONFIG.HOLD_MAX_MS - CONFIG.HOLD_MIN_MS))
+      );
+      this.onGestureCallback({
+        slotIndex,
+        gesture: 'hold',
+        chargeDurationMs: duration,
+        chargeRatio,
+      });
+      return;
+    }
+
+    // Standard Tap
+    this.onGestureCallback({
+      slotIndex,
+      gesture: 'tap',
+      chargeDurationMs: duration,
+      chargeRatio: 0,
+    });
+  }
+
+  startChargeLoop() {
+    if (typeof requestAnimationFrame === 'undefined') return;
+
+    const update = () => {
+      const now = performance.now();
+      for (const [slotIndex, tracker] of this.trackers.entries()) {
+        if (tracker.isDown) {
+          const duration = now - tracker.pressTimestamp;
+          if (duration >= CONFIG.HOLD_MIN_MS) {
+            const ratio = Math.min(
+              1.0,
+              (duration - CONFIG.HOLD_MIN_MS) / (CONFIG.HOLD_MAX_MS - CONFIG.HOLD_MIN_MS)
+            );
+            if (Math.abs(tracker.chargeRatio - ratio) > 0.01) {
+              tracker.chargeRatio = ratio;
+              this.onChargeUpdateCallback(slotIndex, ratio);
+            }
+          }
+        }
+      }
+      this.animationFrameId = requestAnimationFrame(update);
+    };
+
+    this.animationFrameId = requestAnimationFrame(update);
+  }
+
+  destroy() {
+    if (this.animationFrameId !== null && typeof cancelAnimationFrame !== 'undefined') {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Lokarta Browser Edition - Main Application & Game Controller
  * Connects GameClient, GridMap, LightingSystem, CombatSystem, EntityAI,
- * InventorySystem, ProgressionSystem, and AudioSystem into a full game loop.
+ * InventorySystem, ProgressionSystem, FateGrantSystem, GestureEngine, and AudioSystem.
  */
 
 import { GameClient } from './game-client.js';
@@ -14,6 +14,8 @@ import {
   CombatSystem,
   EntityAI,
   InventorySystem,
+  FateGrantSystem,
+  GestureEngine,
   createPlayer,
 } from './engine.js';
 import { AudioSystem, soundFX } from './audio.js';
@@ -25,15 +27,12 @@ import { AudioSystem, soundFX } from './audio.js';
 class SpriteRenderer {
   static drawTile(ctx, type, screenX, screenY, size = CONFIG.GRID_SIZE) {
     if (type === TILE_TYPES.WALL) {
-      // Wall stone block
       ctx.fillStyle = '#2a2f3b';
       ctx.fillRect(screenX, screenY, size, size);
 
-      // Top highlight
       ctx.fillStyle = '#444d61';
       ctx.fillRect(screenX, screenY, size, 4);
 
-      // Brick pattern accents
       ctx.strokeStyle = '#1a1d24';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -50,7 +49,6 @@ class SpriteRenderer {
       ctx.strokeStyle = '#0d0f14';
       ctx.strokeRect(screenX + 0.5, screenY + 0.5, size - 1, size - 1);
     } else if (type === TILE_TYPES.STAIRS) {
-      // Radiant exit stairway
       ctx.fillStyle = '#152b3c';
       ctx.fillRect(screenX, screenY, size, size);
 
@@ -60,25 +58,21 @@ class SpriteRenderer {
         ctx.fillRect(screenX + inset, screenY + inset, size - inset * 2, size - inset * 2);
       }
 
-      // Exit rune portal center
       ctx.fillStyle = '#88eeff';
       ctx.beginPath();
       ctx.arc(screenX + size / 2, screenY + size / 2, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Glowing border
       ctx.strokeStyle = '#66ccff';
       ctx.lineWidth = 2;
       ctx.strokeRect(screenX + 2, screenY + 2, size - 4, size - 4);
     } else if (type === TILE_TYPES.DOOR) {
-      // Wooden door threshold
       ctx.fillStyle = '#4a2f1b';
       ctx.fillRect(screenX, screenY, size, size);
       ctx.strokeStyle = '#2d1c10';
       ctx.lineWidth = 2;
       ctx.strokeRect(screenX + 2, screenY + 2, size - 4, size - 4);
     } else {
-      // Walkable flagstone floor
       ctx.fillStyle = '#1a1c23';
       ctx.fillRect(screenX, screenY, size, size);
 
@@ -86,7 +80,6 @@ class SpriteRenderer {
       ctx.lineWidth = 1;
       ctx.strokeRect(screenX, screenY, size, size);
 
-      // Subtle stone speckles
       ctx.fillStyle = '#222530';
       ctx.fillRect(screenX + 4, screenY + 4, 6, 6);
       ctx.fillRect(screenX + size - 10, screenY + size - 10, 6, 6);
@@ -102,7 +95,6 @@ class SpriteRenderer {
       ctx.beginPath();
       ctx.arc(cx, cy + 2, 7, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.fillStyle = '#f1faee';
       ctx.fillRect(cx - 3, cy - 8, 6, 4);
       ctx.fillStyle = '#d4a373';
@@ -112,7 +104,6 @@ class SpriteRenderer {
       ctx.beginPath();
       ctx.arc(cx, cy + 2, 7, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.fillStyle = '#f1faee';
       ctx.fillRect(cx - 3, cy - 8, 6, 4);
       ctx.fillStyle = '#d4a373';
@@ -120,12 +111,10 @@ class SpriteRenderer {
     } else if (item.item_id === 'torch') {
       ctx.fillStyle = '#8b5a2b';
       ctx.fillRect(cx - 3, cy - 4, 6, 14);
-
       ctx.fillStyle = '#ffaa00';
       ctx.beginPath();
       ctx.arc(cx, cy - 6, 5, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.fillStyle = '#ff4400';
       ctx.beginPath();
       ctx.arc(cx, cy - 5, 3, 0, Math.PI * 2);
@@ -139,7 +128,6 @@ class SpriteRenderer {
       ctx.moveTo(cx - 4, cy + 8);
       ctx.lineTo(cx + 8, cy - 4);
       ctx.stroke();
-
       ctx.fillStyle = '#e9d8a6';
       ctx.fillRect(cx - 8, cy + 5, 4, 4);
     } else if (item.type === 'weapon') {
@@ -149,26 +137,32 @@ class SpriteRenderer {
         ctx.beginPath();
         ctx.arc(cx, cy, 9, -Math.PI / 3, Math.PI / 3);
         ctx.stroke();
-
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(cx + 5, cy - 8);
         ctx.lineTo(cx + 5, cy + 8);
         ctx.stroke();
+      } else if (item.item_id.includes('warhammer') || item.item_id.includes('hammer')) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(cx - 6, cy - 8, 12, 6);
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(cx - 2, cy - 2, 4, 12);
       } else {
-        ctx.strokeStyle = '#a370f7';
+        ctx.strokeStyle = '#94a3b8';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(cx - 6, cy + 6);
         ctx.lineTo(cx + 6, cy - 6);
         ctx.stroke();
-
-        ctx.fillStyle = '#00ffff';
-        ctx.beginPath();
-        ctx.arc(cx + 6, cy - 6, 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(cx - 8, cy + 4, 4, 4);
       }
+    } else if (item.type === 'spell') {
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       ctx.fillStyle = '#e0a96d';
       ctx.fillRect(cx - 5, cy - 5, 10, 10);
@@ -194,7 +188,9 @@ class SpriteRenderer {
     ctx.ellipse(cx, cy + size / 3, size / 3, size / 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    if (player.vocation === 'magician') {
+    const voc = player.vocation || 'magician';
+
+    if (voc === 'magician') {
       // Magician Robe
       ctx.fillStyle = '#5c2d91';
       ctx.beginPath();
@@ -205,34 +201,17 @@ class SpriteRenderer {
       ctx.closePath();
       ctx.fill();
 
-      // Gold Trim
+      // Trim & Hood
       ctx.strokeStyle = '#ffd700';
       ctx.lineWidth = 1;
       ctx.stroke();
-
-      // Hood
       ctx.fillStyle = '#7a3cb8';
       ctx.beginPath();
       ctx.arc(cx, cy - 6, 6, 0, Math.PI * 2);
       ctx.fill();
 
-      // Face & eyes
       SpriteRenderer.drawFacingEyes(ctx, cx, cy - 6, player.facing, '#44ccff');
-
-      // Wand
-      const wandOffset = SpriteRenderer.getFacingOffset(player.facing);
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cx + wandOffset.x * 6, cy + wandOffset.y * 6);
-      ctx.lineTo(cx + wandOffset.x * 12, cy + wandOffset.y * 12);
-      ctx.stroke();
-
-      ctx.fillStyle = '#00ffff';
-      ctx.beginPath();
-      ctx.arc(cx + wandOffset.x * 12, cy + wandOffset.y * 12, 3, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
+    } else if (voc === 'archer') {
       // Archer Tunic
       ctx.fillStyle = '#2d6a4f';
       ctx.beginPath();
@@ -243,34 +222,55 @@ class SpriteRenderer {
       ctx.closePath();
       ctx.fill();
 
-      // Leather sash
-      ctx.strokeStyle = '#8b5a2b';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cx - 6, cy - 4);
-      ctx.lineTo(cx + 6, cy + 10);
-      ctx.stroke();
-
       // Cap
-      ctx.fillStyle = '#40916c';
+      ctx.fillStyle = '#1b4332';
       ctx.beginPath();
       ctx.arc(cx, cy - 6, 6, 0, Math.PI * 2);
       ctx.fill();
 
-      // Red feather
-      ctx.fillStyle = '#e63946';
-      ctx.fillRect(cx - 2, cy - 12, 3, 5);
+      SpriteRenderer.drawFacingEyes(ctx, cx, cy - 6, player.facing, '#e9d8a6');
+    } else if (voc === 'fighter') {
+      // Fighter Steel Armor
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy + 12);
+      ctx.lineTo(cx + 8, cy + 12);
+      ctx.lineTo(cx + 7, cy - 4);
+      ctx.lineTo(cx - 7, cy - 4);
+      ctx.closePath();
+      ctx.fill();
 
-      // Face & eyes
-      SpriteRenderer.drawFacingEyes(ctx, cx, cy - 6, player.facing, '#2b2b2b');
+      // Helmet
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 6, 7, 0, Math.PI * 2);
+      ctx.fill();
 
-      // Bow
-      const bowOffset = SpriteRenderer.getFacingOffset(player.facing);
-      ctx.strokeStyle = '#8b5a2b';
+      SpriteRenderer.drawFacingEyes(ctx, cx, cy - 6, player.facing, '#f87171');
+    } else if (voc === 'paladin') {
+      // Paladin Golden Plate
+      ctx.fillStyle = '#ca8a04';
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy + 12);
+      ctx.lineTo(cx + 8, cy + 12);
+      ctx.lineTo(cx + 7, cy - 4);
+      ctx.lineTo(cx - 7, cy - 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Sacred Halo & Greathelm
+      ctx.strokeStyle = '#fef08a';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(cx + bowOffset.x * 8, cy + bowOffset.y * 8, 6, 0, Math.PI);
+      ctx.ellipse(cx, cy - 14, 6, 2, 0, 0, Math.PI * 2);
       ctx.stroke();
+
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 6, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      SpriteRenderer.drawFacingEyes(ctx, cx, cy - 6, player.facing, '#38bdf8');
     }
   }
 
@@ -278,181 +278,109 @@ class SpriteRenderer {
     const cx = screenX + size / 2;
     const cy = screenY + size / 2;
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + size / 3, size / 3, size / 6, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    const isAggro = monster.isAggroed;
-
     if (monster.type === 'giant_rat') {
-      // Giant Rat: Brown rodent body, snout, ears, red eyes
-      ctx.fillStyle = '#5c4033';
+      ctx.fillStyle = '#5a3d28';
       ctx.beginPath();
-      ctx.ellipse(cx, cy + 2, 9, 6, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy + 2, 8, 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Head & snout
-      const offset = SpriteRenderer.getFacingOffset(monster.facing);
-      ctx.fillStyle = '#7a5542';
+      ctx.fillStyle = '#ff2222';
       ctx.beginPath();
-      ctx.arc(cx + offset.x * 7, cy + offset.y * 4, 5, 0, Math.PI * 2);
+      ctx.arc(cx + 4, cy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (monster.type === 'crypt_skeleton') {
+      ctx.fillStyle = '#dcdde1';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 4, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Beady red eyes
-      SpriteRenderer.drawFacingEyes(ctx, cx + offset.x * 4, cy + offset.y * 2, monster.facing, isAggro ? '#ff0000' : '#882222');
-
-      // Tail
-      ctx.strokeStyle = '#a67c52';
+      ctx.strokeStyle = '#dcdde1';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(cx - offset.x * 7, cy + 2);
-      ctx.lineTo(cx - offset.x * 12, cy + 6);
+      ctx.moveTo(cx, cy + 1);
+      ctx.lineTo(cx, cy + 10);
       ctx.stroke();
-    } else if (monster.type === 'crypt_skeleton') {
-      // Skeleton: Ribcage & skull
-      ctx.fillStyle = '#d6d6d6';
-      ctx.fillRect(cx - 4, cy - 2, 8, 12);
 
-      // Rib lines
-      ctx.strokeStyle = '#222222';
-      ctx.lineWidth = 1;
+      ctx.fillStyle = '#00ffff';
       ctx.beginPath();
-      ctx.moveTo(cx - 4, cy + 2);
-      ctx.lineTo(cx + 4, cy + 2);
-      ctx.moveTo(cx - 4, cy + 6);
-      ctx.lineTo(cx + 4, cy + 6);
-      ctx.stroke();
+      ctx.arc(cx - 2, cy - 4, 1, 0, Math.PI * 2);
+      ctx.arc(cx + 2, cy - 4, 1, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (monster.type === 'shadow_cultist' || monster.type === 'elite_cultist') {
+      ctx.fillStyle = monster.type === 'elite_cultist' ? '#3b0764' : '#1e1b4b';
+      ctx.beginPath();
+      ctx.moveTo(cx - 7, cy + 12);
+      ctx.lineTo(cx + 7, cy + 12);
+      ctx.lineTo(cx + 4, cy - 4);
+      ctx.lineTo(cx - 4, cy - 4);
+      ctx.closePath();
+      ctx.fill();
 
-      // Skull
-      ctx.fillStyle = '#e8e8e8';
+      ctx.fillStyle = monster.type === 'elite_cultist' ? '#6b21a8' : '#312e81';
       ctx.beginPath();
       ctx.arc(cx, cy - 6, 6, 0, Math.PI * 2);
       ctx.fill();
 
-      SpriteRenderer.drawFacingEyes(ctx, cx, cy - 6, monster.facing, isAggro ? '#ff2222' : '#555555');
+      ctx.fillStyle = '#a855f7';
+      ctx.beginPath();
+      ctx.arc(cx - 2, cy - 6, 1.5, 0, Math.PI * 2);
+      ctx.arc(cx + 2, cy - 6, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (monster.type === 'abyssal_overlord' || monster.isBoss) {
+      ctx.fillStyle = '#450a0a';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 4, 12, 0, Math.PI * 2);
+      ctx.fill();
 
-      // Rusted blade
-      ctx.strokeStyle = '#888888';
+      ctx.strokeStyle = '#dc2626';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(cx + 6, cy + 8);
-      ctx.lineTo(cx + 12, cy - 2);
-      ctx.stroke();
-    } else if (monster.type === 'abyssal_overlord' || monster.isBoss) {
-      // Abyssal Overlord Boss: Large horned demon with flaming red aura
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
-      ctx.beginPath();
-      ctx.arc(cx, cy, size / 2 + 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Dark obsidian torso
-      ctx.fillStyle = '#1c050a';
-      ctx.beginPath();
-      ctx.moveTo(cx - 10, cy + 14);
-      ctx.lineTo(cx + 10, cy + 14);
-      ctx.lineTo(cx + 8, cy - 6);
-      ctx.lineTo(cx - 8, cy - 6);
-      ctx.closePath();
-      ctx.fill();
-
-      // Demonic head
-      ctx.fillStyle = '#3d0c15';
-      ctx.beginPath();
-      ctx.arc(cx, cy - 8, 8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Horns
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(cx - 6, cy - 12);
-      ctx.lineTo(cx - 11, cy - 18);
-      ctx.moveTo(cx + 6, cy - 12);
-      ctx.lineTo(cx + 11, cy - 18);
+      ctx.moveTo(cx - 8, cy - 12);
+      ctx.lineTo(cx - 12, cy - 18);
+      ctx.moveTo(cx + 8, cy - 12);
+      ctx.lineTo(cx + 12, cy - 18);
       ctx.stroke();
 
-      // Blazing hellfire eyes
-      SpriteRenderer.drawFacingEyes(ctx, cx, cy - 8, monster.facing, '#ffea00');
-
-      // Boss crown/emblem
-      ctx.fillStyle = '#ffd700';
-      ctx.fillRect(cx - 3, cy - 16, 6, 3);
-    } else {
-      // Shadow / Elite Cultist
-      const isElite = monster.type === 'elite_cultist';
-      ctx.fillStyle = isElite ? '#380e28' : '#1c1124';
+      ctx.fillStyle = '#ef4444';
       ctx.beginPath();
-      ctx.moveTo(cx - 8, cy + 12);
-      ctx.lineTo(cx + 8, cy + 12);
-      ctx.lineTo(cx + 6, cy - 4);
-      ctx.lineTo(cx - 6, cy - 4);
-      ctx.closePath();
-      ctx.fill();
-
-      // Hood
-      ctx.fillStyle = isElite ? '#50173b' : '#2b1b38';
-      ctx.beginPath();
-      ctx.arc(cx, cy - 6, 7, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Face void
-      ctx.fillStyle = '#0a050f';
-      ctx.beginPath();
-      ctx.arc(cx, cy - 6, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Purple / Magenta glowing eyes
-      const eyeColor = isAggro ? (isElite ? '#ff00aa' : '#bf40bf') : '#3d1c5a';
-      SpriteRenderer.drawFacingEyes(ctx, cx, cy - 6, monster.facing, eyeColor);
-
-      // Shadow orb in hands
-      ctx.fillStyle = isElite ? '#ec4899' : '#a855f7';
-      ctx.beginPath();
-      ctx.arc(cx, cy + 4, 3, 0, Math.PI * 2);
+      ctx.arc(cx - 4, cy - 4, 2.5, 0, Math.PI * 2);
+      ctx.arc(cx + 4, cy - 4, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Health Bar
-    const barWidth = size - 6;
-    const barHeight = 4;
-    const hpRatio = Math.max(0, monster.hp / (monster.max_hp || 1));
+    if (monster.hp < monster.max_hp) {
+      const barW = 24;
+      const barH = 3;
+      const barX = cx - barW / 2;
+      const barY = cy - 16;
+      const pct = Math.max(0, monster.hp / monster.max_hp);
 
-    ctx.fillStyle = 'rgba(0,0,0,0.85)';
-    ctx.fillRect(screenX + 3, screenY - 7, barWidth, barHeight);
-
-    ctx.fillStyle = hpRatio > 0.5 ? '#22c55e' : hpRatio > 0.25 ? '#eab308' : '#ef4444';
-    ctx.fillRect(screenX + 3, screenY - 7, barWidth * hpRatio, barHeight);
-  }
-
-  static getFacingOffset(facing) {
-    switch (facing) {
-      case 'left': return { x: -1, y: 0 };
-      case 'right': return { x: 1, y: 0 };
-      case 'up': return { x: 0, y: -1 };
-      case 'down': default: return { x: 0, y: 1 };
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(barX, barY, barW * pct, barH);
     }
   }
 
-  static drawFacingEyes(ctx, cx, cy, facing, color) {
-    ctx.fillStyle = color;
-    if (facing === 'left') {
-      ctx.fillRect(cx - 4, cy - 1, 2, 2);
-    } else if (facing === 'right') {
-      ctx.fillRect(cx + 2, cy - 1, 2, 2);
-    } else if (facing === 'up') {
-      ctx.fillRect(cx - 3, cy - 3, 2, 2);
-      ctx.fillRect(cx + 1, cy - 3, 2, 2);
-    } else {
-      ctx.fillRect(cx - 3, cy - 1, 2, 2);
-      ctx.fillRect(cx + 1, cy - 1, 2, 2);
-    }
+  static drawFacingEyes(ctx, headX, headY, facing, eyeColor = '#44ccff') {
+    ctx.fillStyle = eyeColor;
+    let ox = 0;
+    let oy = 0;
+    if (facing === 'up') oy = -2;
+    if (facing === 'down') oy = 2;
+    if (facing === 'left') ox = -2;
+    if (facing === 'right') ox = 2;
+
+    ctx.beginPath();
+    ctx.arc(headX + ox - 2, headY + oy, 1.2, 0, Math.PI * 2);
+    ctx.arc(headX + ox + 2, headY + oy, 1.2, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
 // ============================================================================
-// Canvas Renderer (Tilemap, Entities, Lighting Mask, VFX)
+// Canvas Viewport Renderer
 // ============================================================================
 
 class CanvasRenderer {
@@ -463,28 +391,28 @@ class CanvasRenderer {
     this.cameraY = 0;
   }
 
-  resize(width, height) {
-    this.canvas.width = width;
-    this.canvas.height = height;
+  resize() {
+    const parent = this.canvas.parentElement;
+    if (parent) {
+      this.canvas.width = parent.clientWidth;
+      this.canvas.height = parent.clientHeight;
+    }
+  }
+
+  updateCamera(player, width, height) {
+    const targetX = player.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - width / 2;
+    const targetY = player.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - height / 2;
+    this.cameraX = Math.round(targetX);
+    this.cameraY = Math.round(targetY);
   }
 
   render(gridMap, player, monsters, ambientLights, projectiles, floatingTexts, selectedMonsterId) {
+    const { width, height } = this.canvas;
     const ctx = this.ctx;
-    const width = this.canvas.width;
-    const height = this.canvas.height;
 
-    // Center camera on player
-    const targetCamX = player.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - width / 2;
-    const targetCamY = player.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - height / 2;
+    this.updateCamera(player, width, height);
 
-    const maxCamX = Math.max(0, gridMap.width * CONFIG.GRID_SIZE - width);
-    const maxCamY = Math.max(0, gridMap.height * CONFIG.GRID_SIZE - height);
-
-    this.cameraX = Math.max(0, Math.min(maxCamX, targetCamX));
-    this.cameraY = Math.max(0, Math.min(maxCamY, targetCamY));
-
-    // Clear background
-    ctx.fillStyle = '#0a0a0f';
+    ctx.fillStyle = '#050608';
     ctx.fillRect(0, 0, width, height);
 
     const startTileX = Math.max(0, Math.floor(this.cameraX / CONFIG.GRID_SIZE));
@@ -492,7 +420,7 @@ class CanvasRenderer {
     const startTileY = Math.max(0, Math.floor(this.cameraY / CONFIG.GRID_SIZE));
     const endTileY = Math.min(gridMap.height - 1, Math.ceil((this.cameraY + height) / CONFIG.GRID_SIZE));
 
-    // 1. Tilemap Layer
+    // 1. Tiles Layer
     for (let y = startTileY; y <= endTileY; y++) {
       for (let x = startTileX; x <= endTileX; x++) {
         const tile = gridMap.tiles[y][x];
@@ -515,7 +443,7 @@ class CanvasRenderer {
       }
     }
 
-    // 3. Monster Entities Layer (only lit / visible monsters)
+    // 3. Monsters Layer
     for (const monster of monsters) {
       if (monster.visible && monster.hp > 0) {
         const screenX = monster.x * CONFIG.GRID_SIZE - this.cameraX;
@@ -538,15 +466,15 @@ class CanvasRenderer {
       }
     }
 
-    // 4. Player Entity Layer
+    // 4. Player Layer
     const playerScreenX = player.x * CONFIG.GRID_SIZE - this.cameraX;
     const playerScreenY = player.y * CONFIG.GRID_SIZE - this.cameraY;
     SpriteRenderer.drawPlayer(ctx, player, playerScreenX, playerScreenY);
 
-    // 5. Projectiles & Energy Beam VFX
+    // 5. Projectiles
     this.renderProjectiles(ctx, projectiles);
 
-    // 6. Dynamic Darkness & Lighting Mask
+    // 6. Dynamic Continuous Radial Darkness & Lighting
     this.renderLightMask(ctx, gridMap, player, ambientLights, width, height);
 
     // 7. Floating Combat Damage & XP Numbers
@@ -596,6 +524,7 @@ class CanvasRenderer {
   renderLightMask(ctx, gridMap, player, ambientLights, viewportWidth, viewportHeight) {
     ctx.save();
 
+    // 1. Render black darkness over unlit tiles
     const startTileX = Math.max(0, Math.floor(this.cameraX / CONFIG.GRID_SIZE));
     const endTileX = Math.min(gridMap.width - 1, Math.ceil((this.cameraX + viewportWidth) / CONFIG.GRID_SIZE));
     const startTileY = Math.max(0, Math.floor(this.cameraY / CONFIG.GRID_SIZE));
@@ -610,82 +539,80 @@ class CanvasRenderer {
         if (!tile.isLit) {
           ctx.fillStyle = '#050608';
           ctx.fillRect(screenX, screenY, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
-        } else {
-          const darknessAlpha = Math.max(0, Math.min(0.85, 1.0 - tile.lightIntensity));
-          if (darknessAlpha > 0.05) {
-            ctx.fillStyle = `rgba(5, 6, 8, ${darknessAlpha.toFixed(2)})`;
-            ctx.fillRect(screenX, screenY, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
-          }
         }
       }
     }
 
-    // Radial aura glow around player
+    // 2. Smooth continuous radial darkness dissolve over player FOV
     const playerRadius = LightingSystem.computePlayerRadius(player);
     const playerScreenX = player.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - this.cameraX;
     const playerScreenY = player.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - this.cameraY;
+    const maxRadiusPx = (playerRadius + 0.5) * CONFIG.GRID_SIZE;
+    const innerClearRadiusPx = (playerRadius * 0.58) * CONFIG.GRID_SIZE;
 
-    const auraColor = player.lightSpellTimer > 0 ? 'rgba(100, 220, 255, 0.15)' : 'rgba(255, 170, 68, 0.12)';
-    const glowRadius = playerRadius * CONFIG.GRID_SIZE;
-
-    const grad = ctx.createRadialGradient(
+    const darkGrad = ctx.createRadialGradient(
       playerScreenX,
       playerScreenY,
-      CONFIG.GRID_SIZE / 2,
+      innerClearRadiusPx,
       playerScreenX,
       playerScreenY,
-      glowRadius
+      maxRadiusPx
     );
-    grad.addColorStop(0, auraColor);
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    darkGrad.addColorStop(0, 'rgba(5, 6, 8, 0.0)');
+    darkGrad.addColorStop(0.35, 'rgba(5, 6, 8, 0.18)');
+    darkGrad.addColorStop(0.70, 'rgba(5, 6, 8, 0.55)');
+    darkGrad.addColorStop(0.95, 'rgba(5, 6, 8, 0.90)');
+    darkGrad.addColorStop(1.0, 'rgba(5, 6, 8, 1.0)');
 
-    ctx.fillStyle = grad;
+    ctx.fillStyle = darkGrad;
     ctx.beginPath();
-    ctx.arc(playerScreenX, playerScreenY, glowRadius, 0, Math.PI * 2);
+    ctx.arc(playerScreenX, playerScreenY, maxRadiusPx, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ambient light halos
-    for (const emitter of ambientLights) {
-      const eScreenX = emitter.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - this.cameraX;
-      const eScreenY = emitter.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - this.cameraY;
-      const eRadius = (emitter.radius || CONFIG.AMBIENT_LIGHT_RADIUS) * CONFIG.GRID_SIZE;
+    // 3. Subtle aura for active spells / torches
+    const hasActiveSpell = player.lightSpellTimer > 0;
+    const hasTorch = player.paperdoll?.main_hand?.item_id === 'torch' ||
+                     player.paperdoll?.off_hand?.item_id === 'torch' ||
+                     player.action_bar?.some(i => i?.item_id === 'torch');
 
-      const eGrad = ctx.createRadialGradient(
-        eScreenX,
-        eScreenY,
+    if (hasActiveSpell || hasTorch) {
+      const auraRadius = hasActiveSpell ? 2.5 * CONFIG.GRID_SIZE : 1.5 * CONFIG.GRID_SIZE;
+      const auraColor = hasActiveSpell ? 'rgba(56, 189, 248, 0.22)' : 'rgba(251, 191, 36, 0.18)';
+
+      const grad = ctx.createRadialGradient(
+        playerScreenX,
+        playerScreenY,
         4,
-        eScreenX,
-        eScreenY,
-        eRadius
+        playerScreenX,
+        playerScreenY,
+        auraRadius
       );
-      eGrad.addColorStop(0, emitter.color === '#88eeff' ? 'rgba(136, 238, 255, 0.18)' : 'rgba(255, 170, 68, 0.14)');
-      eGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      grad.addColorStop(0, auraColor);
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-      ctx.fillStyle = eGrad;
+      ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(eScreenX, eScreenY, eRadius, 0, Math.PI * 2);
+      ctx.arc(playerScreenX, playerScreenY, auraRadius, 0, Math.PI * 2);
       ctx.fill();
     }
 
     ctx.restore();
   }
 
-  renderFloatingTexts(ctx, texts) {
-    ctx.save();
-    ctx.font = 'bold 13px monospace';
-    ctx.textAlign = 'center';
-
-    for (const t of texts) {
+  renderFloatingTexts(ctx, floatingTexts) {
+    for (const t of floatingTexts) {
       const screenX = t.x - this.cameraX;
       const screenY = t.y - this.cameraY;
+      const alpha = Math.max(0, 1.0 - t.elapsedMs / t.durationMs);
 
-      ctx.fillStyle = '#000000';
-      ctx.fillText(t.text, screenX + 1, screenY + 1);
-
+      ctx.save();
       ctx.fillStyle = t.color;
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
       ctx.fillText(t.text, screenX, screenY);
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   screenToGrid(screenX, screenY) {
@@ -699,34 +626,34 @@ class CanvasRenderer {
 }
 
 // ============================================================================
-// Main Game Engine Controller
+// Lokarta App Class
 // ============================================================================
 
 export class LokartaApp {
   constructor() {
-    this.gameClient = new GameClient('./game-worker.js');
-    this.gridMap = new GridMap();
+    this.gameClient = new GameClient(new Worker('./game-worker.js', { type: 'module' }));
     this.player = createPlayer('magician');
+    this.gridMap = new GridMap();
     this.monsters = [];
     this.ambientLights = [];
     this.projectiles = [];
     this.floatingTexts = [];
-
     this.selectedMonsterId = null;
+
     this.isRunning = false;
-    this.isFloorCleared = false;
     this.isGameOver = false;
-    this.currentFloorName = 'Subterranean Crypt';
+    this.isFloorCleared = false;
+    this.currentFloorName = 'Crypt';
 
     this.tickTimer = null;
     this.animFrameId = null;
     this.lastAnimTime = 0;
-    this.regenAccumulator = 0;
     this.keysDown = new Set();
+    this.regenAccumulator = 0;
 
-    // DOM References
     this.canvas = document.getElementById('game-canvas');
     this.renderer = new CanvasRenderer(this.canvas);
+
     this.statusBarsEl = document.getElementById('status-bars-container');
     this.paperdollEl = document.getElementById('paperdoll-container');
     this.backpackEl = document.getElementById('backpack-container');
@@ -734,88 +661,66 @@ export class LokartaApp {
     this.combatLogScrollEl = document.getElementById('log-entries-container');
     this.modalOverlayEl = document.getElementById('modal-overlay');
 
-    this.initWindow();
+    this.gestureEngine = new GestureEngine(
+      event => this.handleGestureEvent(event),
+      (slotIndex, ratio) => this.handleChargeUpdate(slotIndex, ratio)
+    );
+
+    this.init();
+  }
+
+  async init() {
+    window.addEventListener('resize', () => this.renderer.resize());
+    this.renderer.resize();
     this.bindInputs();
-    this.showTitleScreen();
-  }
 
-  initWindow() {
-    const resizeHandler = () => {
-      const wrapper = document.getElementById('viewport-panel');
-      if (wrapper && this.canvas) {
-        this.renderer.resize(wrapper.clientWidth, wrapper.clientHeight);
-      }
-    };
-    window.addEventListener('resize', resizeHandler);
-    setTimeout(resizeHandler, 50);
+    document.getElementById('header-guide-btn')?.addEventListener('click', () => {
+      soundFX.playClick();
+      this.showGuideModal();
+    });
 
-    // Sound toggle in top header
-    const topAudioBtn = document.getElementById('audio-toggle-btn');
-    if (topAudioBtn) {
-      topAudioBtn.addEventListener('click', () => {
-        soundFX.init();
-        const isMuted = soundFX.toggleMute();
-        soundFX.playClick();
-        this.gameClient.setSoundEnabled(!isMuted).catch(() => {});
-        this.updateAudioButtonState();
-      });
-      this.updateAudioButtonState();
-    }
-
-    // Guide button in header
-    const headerGuideBtn = document.getElementById('header-guide-btn');
-    if (headerGuideBtn) {
-      headerGuideBtn.addEventListener('click', () => {
-        soundFX.init();
-        soundFX.playClick();
-        this.showHowToPlayModal(true);
-      });
-    }
-  }
-
-  updateAudioButtonState() {
-    const isMuted = soundFX.getMuted();
-    const topAudioBtn = document.getElementById('audio-toggle-btn');
-    if (topAudioBtn) {
-      topAudioBtn.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
-      if (isMuted) topAudioBtn.classList.add('muted');
-      else topAudioBtn.classList.remove('muted');
-    }
-  }
-
-  // ==========================================================================
-  // Title Screen & Lifecycle
-  // ==========================================================================
-
-  async showTitleScreen() {
-    this.modalOverlayEl.classList.remove('hidden');
-
-    let savedSummaryHtml = '';
-    let hasSavedGame = false;
-    let savedCharacter = null;
+    const audioBtn = document.getElementById('audio-toggle-btn');
+    audioBtn?.addEventListener('click', async () => {
+      soundFX.init();
+      const nextState = !soundFX.enabled;
+      soundFX.setEnabled(nextState);
+      audioBtn.textContent = nextState ? '🔊 Sound: ON' : '🔈 Sound: OFF';
+      audioBtn.classList.toggle('muted', !nextState);
+      await this.gameClient.setSoundEnabled(nextState);
+    });
 
     try {
       const bootstrapData = await this.gameClient.bootstrap();
-      if (bootstrapData?.profile) {
-        soundFX.setMuted(!bootstrapData.profile.soundEnabled);
-        this.updateAudioButtonState();
+      if (bootstrapData.profile) {
+        soundFX.setEnabled(bootstrapData.profile.soundEnabled);
+        if (audioBtn) {
+          audioBtn.textContent = bootstrapData.profile.soundEnabled ? '🔊 Sound: ON' : '🔈 Sound: OFF';
+          audioBtn.classList.toggle('muted', !bootstrapData.profile.soundEnabled);
+        }
       }
 
-      if (bootstrapData?.player) {
-        savedCharacter = bootstrapData.player;
-        hasSavedGame = true;
-        savedSummaryHtml = `
-          <div class="continue-summary-card">
-            <div class="save-tag">💾 Active Saved Quest</div>
-            <div class="save-details">
-              <strong>${(savedCharacter.vocation || 'magician').toUpperCase()}</strong> • Level ${savedCharacter.level || 1} • Floor ${savedCharacter.current_floor || 1}/20
-            </div>
-            <div class="save-stats">HP: ${savedCharacter.hp}/${savedCharacter.max_hp} | MP: ${savedCharacter.mana}/${savedCharacter.max_mana}</div>
-          </div>
-        `;
-      }
+      this.showTitleScreen(bootstrapData.player);
     } catch (err) {
-      console.warn('Bootstrap read error:', err);
+      console.error('Failed to bootstrap Lokarta:', err);
+      this.showTitleScreen(null);
+    }
+  }
+
+  showTitleScreen(savedPlayer) {
+    this.stopGameLoop();
+    this.modalOverlayEl.classList.remove('hidden');
+
+    let continueBtnHtml = '';
+    if (savedPlayer) {
+      const voc = (savedPlayer.vocation || 'magician').toUpperCase();
+      continueBtnHtml = `
+        <div class="continue-summary-card">
+          <div class="save-tag">⭐ SAVED HERO AVAILABLE</div>
+          <div class="save-details"><strong>${voc}</strong> (Level ${savedPlayer.level || 1})</div>
+          <div class="save-stats">Floor ${savedPlayer.current_floor || 1}/20 • HP: ${savedPlayer.hp}/${savedPlayer.max_hp} • MP: ${savedPlayer.mana}/${savedPlayer.max_mana}</div>
+        </div>
+        <button class="title-btn continue-btn" id="title-btn-continue">⚔️ CONTINUE ADVENTURE</button>
+      `;
     }
 
     this.modalOverlayEl.innerHTML = `
@@ -824,283 +729,288 @@ export class LokartaApp {
           <span class="title-torch left-torch">🔥</span>
           <span class="title-torch right-torch">🔥</span>
         </div>
-
-        <div class="title-header">
-          <div class="title-emblem">🕯️</div>
-          <h1 class="title-main">LOKARTA</h1>
-          <p class="title-subtitle">COME INTO THE LIGHT</p>
-          <div class="title-tagline">A 20-Floor Subterranean Descent</div>
-        </div>
-
-        ${savedSummaryHtml}
-
+        <div class="title-emblem">🕯️</div>
+        <h1 class="title-main">LOKARTA</h1>
+        <div class="title-subtitle">COME INTO THE LIGHT</div>
+        <div class="title-tagline">A Gothic Roguelike Dungeon Crawl</div>
         <div class="title-menu-actions">
-          ${
-            hasSavedGame
-              ? `<button class="title-btn continue-btn" id="btn-title-continue">
-                  <span class="btn-icon">📜</span> Continue Quest (Floor ${savedCharacter?.current_floor || 1})
-                </button>`
-              : ''
-          }
-          <button class="title-btn new-game-btn" id="btn-title-new-game">
-            <span class="btn-icon">⚔️</span> ${hasSavedGame ? 'New Game / Choose Vocation' : 'New Game'}
-          </button>
-          <button class="title-btn guide-btn" id="btn-title-guide">
-            <span class="btn-icon">📖</span> How to Play & Controls
-          </button>
-          <button class="title-btn audio-title-btn" id="btn-title-audio">
-            <span class="btn-icon">${soundFX.getMuted() ? '🔇' : '🔊'}</span> Sound FX: ${soundFX.getMuted() ? 'OFF' : 'ON'}
-          </button>
+          ${continueBtnHtml}
+          <button class="title-btn new-game-btn" id="title-btn-new-game">🕯️ NEW EXPEDITION</button>
         </div>
-
-        <div class="title-footer">
-          <span>Browser Edition • 20 Floors • IndexedDB Save Sync • Procedural Audio</span>
-        </div>
+        <div class="title-footer">Browser Edition v2.3 • 10 Action Slots • Fate Grant Draft • 10-Tile FOV</div>
       </div>
     `;
 
-    document.getElementById('btn-title-continue')?.addEventListener('click', () => {
-      soundFX.init();
+    document.getElementById('title-btn-continue')?.addEventListener('click', async () => {
       soundFX.playClick();
       this.modalOverlayEl.classList.add('hidden');
       this.modalOverlayEl.innerHTML = '';
-      this.startSession(savedCharacter?.vocation || 'magician', true);
+      await this.loadSavedGame(savedPlayer);
     });
 
-    document.getElementById('btn-title-new-game')?.addEventListener('click', () => {
-      soundFX.init();
+    document.getElementById('title-btn-new-game')?.addEventListener('click', () => {
       soundFX.playClick();
-      this.showCharacterSelect();
-    });
-
-    document.getElementById('btn-title-guide')?.addEventListener('click', () => {
-      soundFX.init();
-      soundFX.playClick();
-      this.showHowToPlayModal(false);
-    });
-
-    document.getElementById('btn-title-audio')?.addEventListener('click', () => {
-      soundFX.init();
-      const isMuted = soundFX.toggleMute();
-      soundFX.playClick();
-      this.gameClient.setSoundEnabled(!isMuted).catch(() => {});
-      this.updateAudioButtonState();
-      const btn = document.getElementById('btn-title-audio');
-      if (btn) {
-        btn.innerHTML = `<span class="btn-icon">${isMuted ? '🔇' : '🔊'}</span> Sound FX: ${isMuted ? 'OFF' : 'ON'}`;
-      }
+      this.showCharacterSelectModal();
     });
   }
 
-  showCharacterSelect() {
+  showCharacterSelectModal() {
+    this.modalOverlayEl.classList.remove('hidden');
     this.modalOverlayEl.innerHTML = `
       <div class="character-select-modal">
         <div class="modal-header">
           <h2>CHOOSE YOUR VOCATION</h2>
-          <p class="subtitle">DESCEND INTO FLOOR 1 OF 20</p>
+          <div class="subtitle">Descend into the 20 Subterranean Vaults of Lokarta</div>
         </div>
-        <p class="prompt">Select your class to begin your descent into the dark labyrinth:</p>
+        <p class="prompt">Select your champion. Each vocation wields unique combat mechanics & 2.5x Mastery bonuses:</p>
         <div class="vocation-cards">
+          <!-- Magician -->
           <div class="vocation-card" data-vocation="magician">
-            <div class="card-icon magician-icon">🧙</div>
+            <div class="card-icon">🧙‍♂️</div>
             <h3>Magician</h3>
             <div class="stats-preview">
-              <div class="stat-row"><span class="stat-label">Health:</span> <span class="stat-val hp">60 HP (+8/lv)</span></div>
-              <div class="stat-row"><span class="stat-label">Mana:</span> <span class="stat-val mp">120 MP (+16/lv)</span></div>
-              <div class="stat-row"><span class="stat-label">Passive:</span> <span class="stat-val mp">+2 MP / 5s</span></div>
+              <div class="stat-row"><span class="stat-label">Health (HP):</span><span class="stat-val hp">60</span></div>
+              <div class="stat-row"><span class="stat-label">Mana (MP):</span><span class="stat-val mp">150</span></div>
             </div>
-            <p class="desc">Master of radiant illumination and piercing energy beams. Powers scale with +10% magic damage per level.</p>
-            <ul class="skills-list">
-              <li><strong>[1] Wand Spark:</strong> 12–16 Magic Dmg (0 Mana)</li>
-              <li><strong>[2] Light Spell:</strong> 7-tile aura for 30s (15 Mana)</li>
-              <li><strong>[3] Energy Beam:</strong> 30–40 Piercing Dmg (30 Mana)</li>
-            </ul>
+            <p class="desc">Master of elemental sorcery, radiant illumination, and linear piercing beam blasts.</p>
             <button class="select-btn" data-vocation="magician">Select Magician</button>
           </div>
 
+          <!-- Archer -->
           <div class="vocation-card" data-vocation="archer">
-            <div class="card-icon archer-icon">🏹</div>
+            <div class="card-icon">🏹</div>
             <h3>Archer</h3>
             <div class="stats-preview">
-              <div class="stat-row"><span class="stat-label">Health:</span> <span class="stat-val hp">90 HP (+14/lv)</span></div>
-              <div class="stat-row"><span class="stat-label">Mana:</span> <span class="stat-val mp">60 MP (+8/lv)</span></div>
-              <div class="stat-row"><span class="stat-label">Passive:</span> <span class="stat-val hp">+2 HP / 5s</span></div>
+              <div class="stat-row"><span class="stat-label">Health (HP):</span><span class="stat-val hp">90</span></div>
+              <div class="stat-row"><span class="stat-label">Mana (MP):</span><span class="stat-val mp">80</span></div>
             </div>
-            <p class="desc">Deadly ranged scout with high physical stamina. Damage scales with +12% physical power and range per level.</p>
-            <ul class="skills-list">
-              <li><strong>[1] Bow Shot:</strong> 14–18 Physical Dmg (1 Arrow)</li>
-              <li><strong>[2] Power Shot:</strong> 32–42 Heavy Burst (1 Arrow, 4s CD)</li>
-            </ul>
+            <p class="desc">Deadly ranged marksman firing precision arrows and high-tension Power Shots across darkness.</p>
             <button class="select-btn" data-vocation="archer">Select Archer</button>
           </div>
-        </div>
-        <div class="modal-back-action">
-          <button class="action-btn back-btn" id="btn-back-to-title">Back to Title</button>
+
+          <!-- Fighter -->
+          <div class="vocation-card" data-vocation="fighter">
+            <div class="card-icon">⚔️</div>
+            <h3>Fighter</h3>
+            <div class="stats-preview">
+              <div class="stat-row"><span class="stat-label">Health (HP):</span><span class="stat-val hp">140</span></div>
+              <div class="stat-row"><span class="stat-label">Mana (MP):</span><span class="stat-val mp">30</span></div>
+            </div>
+            <p class="desc">Unyielding melee berserker delivering lethal sword slashes and whirlwind cleaves.</p>
+            <button class="select-btn" data-vocation="fighter">Select Fighter</button>
+          </div>
+
+          <!-- Paladin -->
+          <div class="vocation-card" data-vocation="paladin">
+            <div class="card-icon">🛡️</div>
+            <h3>Paladin</h3>
+            <div class="stats-preview">
+              <div class="stat-row"><span class="stat-label">Health (HP):</span><span class="stat-val hp">120</span></div>
+              <div class="stat-row"><span class="stat-label">Mana (MP):</span><span class="stat-val mp">90</span></div>
+            </div>
+            <p class="desc">Holy champion wielding consecrated warhammers, healing prayers, and sacred radiance.</p>
+            <button class="select-btn" data-vocation="paladin">Select Paladin</button>
+          </div>
         </div>
       </div>
     `;
 
-    document.getElementById('btn-back-to-title')?.addEventListener('click', () => {
-      soundFX.playClick();
-      this.showTitleScreen();
-    });
-
-    const buttons = this.modalOverlayEl.querySelectorAll('.select-btn');
-    buttons.forEach(btn => {
-      btn.addEventListener('click', e => {
+    const selectBtns = this.modalOverlayEl.querySelectorAll('.select-btn, .vocation-card');
+    selectBtns.forEach(btn => {
+      btn.addEventListener('click', async e => {
         const vocation = e.currentTarget.getAttribute('data-vocation');
         if (vocation) {
           soundFX.playClick();
           this.modalOverlayEl.classList.add('hidden');
           this.modalOverlayEl.innerHTML = '';
-          this.startSession(vocation, false);
+          await this.startNewGame(vocation);
         }
       });
     });
   }
 
-  showHowToPlayModal(fromGame = false) {
+  showGuideModal() {
     this.modalOverlayEl.classList.remove('hidden');
     this.modalOverlayEl.innerHTML = `
       <div class="guide-modal">
         <div class="modal-header">
-          <h2>HOW TO PLAY LOKARTA</h2>
-          <p class="subtitle">SURVIVAL & EXPLORATION GUIDE</p>
+          <h2>SURVIVAL GUIDE & CONTROLS</h2>
+          <div class="subtitle">Subterranean Mechanics of Lokarta</div>
         </div>
         <div class="guide-content">
           <div class="guide-section">
-            <h3>🕯️ Darkness & Dynamic Light</h3>
-            <p>Subterranean floors are shrouded in pitch darkness. You only see tiles illuminated by equipped <strong>torches</strong>, ambient sconces, or class <strong>Light spells</strong>. Lurking monsters are hidden in shadows until illuminated!</p>
-          </div>
-
-          <div class="guide-section">
-            <h3>🎮 Controls & Hotkeys</h3>
+            <h3>Movement & Floor Interaction</h3>
             <ul class="guide-list">
-              <li><strong>Movement:</strong> <code>W / A / S / D</code> or <code>Arrow Keys</code> (Discrete grid steps)</li>
-              <li><strong>Combat Abilities:</strong> Keys <code>[1]</code>, <code>[2]</code>, <code>[3]</code> (or click hotbar buttons)</li>
-              <li><strong>Backpack Direct Triggers:</strong> Keys <code>[4]</code> through <code>[9]</code> (Drinks potions / equips torches)</li>
-              <li><strong>Interact / Pick Up:</strong> Key <code>[E]</code> or <code>[Space]</code> to pick up floor items</li>
-              <li><strong>Direct Floor Use:</strong> Key <code>[U]</code> to drink potion directly from floor</li>
-              <li><strong>Auto-Pickup:</strong> Walk onto any floor item to instantly pick it up / stack it</li>
-              <li><strong>Targeting:</strong> Click any visible enemy on canvas to lock target reticle</li>
+              <li><code>W</code>, <code>A</code>, <code>S</code>, <code>D</code> / Arrow Keys: Move character in 4 directions.</li>
+              <li><strong>Walkover Auto-Loot:</strong> Step on any item tile to immediately collect it into lowest empty Action Slot or Backpack.</li>
+              <li><strong>Left-Click Floor Tile:</strong> Target enemies or inspect/loot items directly.</li>
             </ul>
           </div>
-
           <div class="guide-section">
-            <h3>⭐ Leveling & 20 Dungeon Floors</h3>
-            <p>Defeat monsters to earn <strong>XP</strong> and level up from Level 1 to 20! Leveling up restores all HP/MP and unlocks permanent <strong>Skill Boosts</strong> (+Damage %, +Max HP, +Max MP, +Range). Step on the illuminated stairs to descend deeper!</p>
+            <h3>10 Modular Action Slots (Keys 1-9, 0)</h3>
+            <ul class="guide-list">
+              <li>Keys <code>1</code> to <code>9</code>, <code>0</code>: Execute items, spells, and weapons in the corresponding slot.</li>
+              <li><strong>Multi-Modal Input:</strong> Tap (&lt;250ms), Hold/Charge (&ge;250ms), Double-Tap (&lt;300ms).</li>
+              <li><strong>Weapons in Action Slots:</strong> Pressing weapon hotkey attacks targeted/in-range enemy.</li>
+              <li><strong>2.5x Class Mastery:</strong> Using native vocation equipment/spells grants 2.5x damage/healing multiplier!</li>
+            </ul>
+          </div>
+          <div class="guide-section">
+            <h3>Fate Grant Roguelike Draft</h3>
+            <p>At Level 1 and every Level-Up, draft 1–2 cards from 5 randomly offered spells, weapons, and relics to power up your hero.</p>
           </div>
         </div>
         <div class="modal-back-action">
-          <button class="action-btn" id="btn-guide-back">${fromGame ? 'Resume Game' : 'Return to Title'}</button>
+          <button class="action-btn" id="btn-close-guide">Back to Dungeon</button>
         </div>
       </div>
     `;
 
-    document.getElementById('btn-guide-back')?.addEventListener('click', () => {
+    document.getElementById('btn-close-guide')?.addEventListener('click', () => {
       soundFX.playClick();
-      if (fromGame) {
-        this.modalOverlayEl.classList.add('hidden');
-        this.modalOverlayEl.innerHTML = '';
-      } else {
-        this.showTitleScreen();
-      }
+      this.modalOverlayEl.classList.add('hidden');
+      this.modalOverlayEl.innerHTML = '';
     });
   }
 
-  // ==========================================================================
-  // Game Session Initialization
-  // ==========================================================================
-
-  async startSession(vocation = 'magician', isContinue = false) {
-    this.clearCombatLog();
-    this.logCombat('Welcome to Lokarta: Come Into The Light.', 'system');
-    this.isFloorCleared = false;
-    this.isGameOver = false;
-
+  async startNewGame(vocation) {
     try {
-      let sessionData;
-      if (isContinue) {
-        this.logCombat(`Restoring saved quest from IndexedDB...`, 'system');
-        sessionData = await this.gameClient.bootstrap();
-        if (!sessionData?.player) {
-          sessionData = await this.gameClient.newGame(vocation);
-        }
-      } else {
-        this.logCombat(`Initializing new quest as ${vocation.toUpperCase()}...`, 'system');
-        sessionData = await this.gameClient.newGame(vocation);
-      }
-
-      this.player = sessionData.player;
-      if (!this.player.skillBoosts) {
-        this.player.skillBoosts = ProgressionSystem.computeSkillBoosts(this.player.vocation, this.player.level || 1);
-      }
-
-      const targetFloorNum = this.player.current_floor || 1;
-      const floorData = sessionData.activeFloor || sessionData.floor || (await this.gameClient.getFloor(targetFloorNum));
-      this.applyDungeonData(floorData);
-
-      LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
-
-      this.logCombat(`Entered ${this.currentFloorName} (Floor ${targetFloorNum}/20) at (${this.player.x}, ${this.player.y}).`, 'system');
-      if (this.player.paperdoll?.left_hand?.item_id === 'torch' || this.player.paperdoll?.right_hand?.item_id === 'torch') {
-        this.logCombat('Equipped Wooden Torch casts a warm glow (7 tiles radius).', 'spell');
-      }
+      const data = await this.gameClient.newGame(vocation);
+      this.player = data.player;
+      this.applyDungeonData(data.floor);
+      this.clearCombatLog();
+      this.logCombat(`Welcome to Lokarta, brave ${(this.player.vocation || 'magician').toUpperCase()}!`, 'victory');
+      this.logCombat('Fate calls upon you: Draft your starter cards.', 'spell');
 
       this.startGameLoop();
+      this.showFateGrantModal(1);
     } catch (err) {
-      console.error('Session initialization error:', err);
-      this.logCombat(`Storage / Worker initialization error: ${err.message}`, 'warning');
+      console.error('Failed to start new game:', err);
     }
   }
 
-  applyDungeonData(data) {
-    this.currentFloorName = data.name || `Floor ${data.floor_number || 1}`;
-    this.gridMap.loadFromMatrix(data.tile_matrix || data.tiles);
+  async loadSavedGame(savedPlayer) {
+    try {
+      this.player = savedPlayer;
+      const floor = await this.gameClient.getFloor(this.player.current_floor || 1);
+      this.applyDungeonData(floor);
+      this.clearCombatLog();
+      this.logCombat(`Resumed expedition on Floor ${this.player.current_floor || 1}/20 (${this.currentFloorName}).`, 'system');
 
-    if (data.spawn_coords) {
-      this.player.x = data.spawn_coords.x;
-      this.player.y = data.spawn_coords.y;
+      this.startGameLoop();
+
+      // If fresh character with empty action bar, offer Level 1 draft
+      const isActionBarEmpty = this.player.action_bar?.every(s => s === null);
+      if (isActionBarEmpty && this.player.level === 1) {
+        this.showFateGrantModal(1);
+      }
+    } catch (err) {
+      console.error('Failed to load saved game:', err);
+    }
+  }
+
+  applyDungeonData(floorData) {
+    this.currentFloorName = floorData.biome_name || 'Crypt';
+    this.gridMap.loadFromMatrix(floorData.tiles);
+
+    for (const item of floorData.items || []) {
+      this.gridMap.addItem(item.x, item.y, item);
     }
 
-    this.ambientLights = (data.ambient_lights || []).map(l => ({
-      x: l.x,
-      y: l.y,
-      radius: l.radius || CONFIG.AMBIENT_LIGHT_RADIUS,
-      color: l.color || '#ffaa44',
-    }));
-
-    // Populate initial floor loot
-    const lootList = data.initial_loot || data.items || [];
-    for (const loot of lootList) {
-      this.gridMap.addItem(loot.x, loot.y, {
-        item_id: loot.item_id,
-        name: loot.name,
-        type: loot.type,
-        quantity: loot.quantity || 1,
-        stat_bonus: loot.stat_bonus || 0,
-      });
-    }
-
-    // Populate monsters
-    const spawnList = data.spawns || data.monsters || [];
-    this.monsters = spawnList.map(s => ({
-      id: s.id || `m_${Math.random()}`,
-      type: s.type || 'crypt_skeleton',
-      name: s.name || (s.type === 'giant_rat' ? 'Giant Rat' : s.type === 'crypt_skeleton' ? 'Crypt Skeleton' : 'Shadow Cultist'),
-      x: s.x,
-      y: s.y,
-      hp: s.hp || 30,
-      max_hp: s.max_hp || s.hp || 30,
-      facing: 'down',
+    this.ambientLights = [];
+    this.monsters = (floorData.monsters || []).map(s => ({
+      ...s,
       isAggroed: false,
-      isBoss: Boolean(s.isBoss || s.id?.includes('boss')),
-      moveCooldown: Math.random() * 0.5,
-      moveCadence: s.moveCadence || (s.type === 'giant_rat' ? CONFIG.RAT_MOVE_CADENCE_SEC : s.type === 'crypt_skeleton' ? CONFIG.SKELETON_MOVE_CADENCE_SEC : CONFIG.CULTIST_MOVE_CADENCE_SEC),
+      moveCooldown: 0,
       attackCooldown: 0,
       attackCadence: s.attackCadence || (s.type === 'giant_rat' ? CONFIG.RAT_ATTACK_CADENCE_SEC : s.type === 'crypt_skeleton' ? CONFIG.SKELETON_ATTACK_CADENCE_SEC : CONFIG.CULTIST_ATTACK_CADENCE_SEC),
       visible: false,
     }));
+  }
+
+  // ==========================================================================
+  // Fate Grant Modal
+  // ==========================================================================
+
+  showFateGrantModal(level = 1) {
+    const offer = FateGrantSystem.generateDraftOffer(this.player.vocation, level);
+    const selectedCards = new Set();
+
+    this.modalOverlayEl.classList.remove('hidden');
+    this.modalOverlayEl.innerHTML = `
+      <div class="fate-grant-modal">
+        <div class="modal-header">
+          <h2>🕯️ FATE GRANT DRAFT (Level ${level})</h2>
+          <div class="subtitle">Select 1 or 2 cards to fortify your Action Slots and Backpack</div>
+        </div>
+        <div class="fate-cards-grid" id="fate-cards-grid">
+          ${offer.cards
+            .map(
+              (card, idx) => `
+            <div class="fate-card rarity-${card.rarity}" data-card-id="${card.id}" data-idx="${idx}">
+              <div class="card-select-badge">✓</div>
+              <div class="card-icon">${card.icon}</div>
+              <div class="card-title">${card.name}</div>
+              <div class="card-stat-bonus">${card.statBonusText || ''}</div>
+              <div class="card-desc">${card.description}</div>
+            </div>
+          `
+            )
+            .join('')}
+        </div>
+        <div class="fate-modal-actions">
+          <button class="confirm-draft-btn" id="btn-confirm-draft" disabled>Confirm Selections (0/2)</button>
+        </div>
+      </div>
+    `;
+
+    const cardEls = this.modalOverlayEl.querySelectorAll('.fate-card');
+    const confirmBtn = document.getElementById('btn-confirm-draft');
+
+    cardEls.forEach(el => {
+      el.addEventListener('click', () => {
+        soundFX.playClick();
+        const cardId = el.getAttribute('data-card-id');
+        const cardObj = offer.cards.find(c => c.id === cardId);
+
+        if (selectedCards.has(cardObj)) {
+          selectedCards.delete(cardObj);
+          el.classList.remove('selected');
+        } else {
+          if (selectedCards.size < 2) {
+            selectedCards.add(cardObj);
+            el.classList.add('selected');
+          }
+        }
+
+        const count = selectedCards.size;
+        confirmBtn.disabled = count === 0;
+        confirmBtn.textContent = `Confirm Selections (${count}/2)`;
+      });
+    });
+
+    confirmBtn.addEventListener('click', async () => {
+      if (selectedCards.size === 0) return;
+      soundFX.playEquip();
+
+      const chosen = Array.from(selectedCards);
+      const applyResult = FateGrantSystem.applyDraftedCards(this.player, chosen, this.gridMap);
+
+      for (const hotbarItem of applyResult.addedToHotbar) {
+        this.logCombat(`Fate granted: ${hotbarItem}`, 'loot');
+      }
+      for (const bpItem of applyResult.addedToBackpack) {
+        this.logCombat(`Fate granted: ${bpItem}`, 'loot');
+      }
+      for (const floorItem of applyResult.droppedOnFloor) {
+        this.logCombat(`Inventory full: ${floorItem} placed on floor.`, 'warning');
+      }
+
+      this.modalOverlayEl.classList.add('hidden');
+      this.modalOverlayEl.innerHTML = '';
+      this.updateHUD();
+      await this.persistSave();
+    });
   }
 
   // ==========================================================================
@@ -1113,12 +1023,10 @@ export class LokartaApp {
     this.isGameOver = false;
     this.isFloorCleared = false;
 
-    // 10 Hz fixed simulation tick
     this.tickTimer = window.setInterval(() => this.tick(), CONFIG.TICK_INTERVAL_MS);
 
-    // 60 FPS animation loop
     this.lastAnimTime = performance.now();
-    const renderFrame = (time) => {
+    const renderFrame = time => {
       const dt = time - this.lastAnimTime;
       this.lastAnimTime = time;
       this.updateAnimations(dt);
@@ -1148,10 +1056,10 @@ export class LokartaApp {
     if (!this.isRunning || this.isGameOver) return;
     const deltaSec = CONFIG.TICK_INTERVAL_MS / 1000;
 
-    // 1. Process continuous keyboard movement
+    // 1. Movement
     this.processMovementInput();
 
-    // 2. Decrement cooldowns & spell timers
+    // 2. Decrement cooldowns
     CombatSystem.decrementCooldowns(this.player, deltaSec);
     CombatSystem.decrementSpellTimers(this.player, deltaSec);
 
@@ -1164,7 +1072,7 @@ export class LokartaApp {
         const amt = 2 + bonusRegen;
         this.player.mana = Math.min(this.player.max_mana, this.player.mana + amt);
         this.addFloatingText(`+${amt} MP`, this.player.x, this.player.y, '#3b82f6');
-      } else if (this.player.vocation === 'archer' && this.player.hp < this.player.max_hp) {
+      } else if (this.player.hp < this.player.max_hp) {
         const amt = 2 + bonusRegen;
         this.player.hp = Math.min(this.player.max_hp, this.player.hp + amt);
         this.addFloatingText(`+${amt} HP`, this.player.x, this.player.y, '#22c55e');
@@ -1177,12 +1085,8 @@ export class LokartaApp {
     // 4. Update monster AI
     const aiResults = EntityAI.updateMonsters(this.monsters, this.player, this.gridMap, deltaSec);
     for (const res of aiResults) {
-      if (res.message) {
-        this.logCombat(res.message, 'combat');
-      }
-      if (res.projectiles) {
-        this.projectiles.push(...res.projectiles);
-      }
+      if (res.message) this.logCombat(res.message, 'combat');
+      if (res.projectiles) this.projectiles.push(...res.projectiles);
       if (res.damageToPlayer && res.damageToPlayer > 0) {
         soundFX.playMonsterAttack();
         soundFX.playPlayerHurt();
@@ -1190,14 +1094,14 @@ export class LokartaApp {
       }
     }
 
-    // 5. Check defeat
+    // 5. Defeat check
     if (this.player.hp <= 0 && !this.isGameOver) {
       this.isGameOver = true;
       this.logCombat('You have fallen in the crypt! Darkness consumes you...', 'warning');
       this.showGameOverModal();
     }
 
-    // 6. Check exit stairway floor clearance
+    // 6. Stairs check
     if (!this.isFloorCleared && this.gridMap.isStairs(this.player.x, this.player.y)) {
       this.handleFloorClear();
     }
@@ -1207,7 +1111,6 @@ export class LokartaApp {
   }
 
   updateAnimations(dtMs) {
-    // Advance projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.elapsedMs += dtMs;
@@ -1216,7 +1119,6 @@ export class LokartaApp {
       }
     }
 
-    // Advance floating texts
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const t = this.floatingTexts[i];
       t.elapsedMs += dtMs;
@@ -1277,7 +1179,7 @@ export class LokartaApp {
           this.player.y = targetY;
           soundFX.playFootstep();
 
-          // Auto-pickup items on entered tile
+          // Frictionless walkover auto-pickup
           const items = this.gridMap.getItems(this.player.x, this.player.y);
           if (items.length > 0) {
             this.handlePickUp();
@@ -1291,51 +1193,24 @@ export class LokartaApp {
     window.addEventListener('keydown', e => {
       this.keysDown.add(e.code);
 
-      // Hotkey triggers
-      if (e.code === 'Digit1' || e.code === 'Numpad1') {
+      const slotIdx = GestureEngine.keyToSlotIndex(e.key);
+      if (slotIdx !== null) {
         e.preventDefault();
-        const abilities = this.getAbilitiesForVocation(this.player);
-        if (abilities[0]) this.handleTriggerAbility(abilities[0].id);
-      } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
-        e.preventDefault();
-        const abilities = this.getAbilitiesForVocation(this.player);
-        if (abilities[1]) this.handleTriggerAbility(abilities[1].id);
-      } else if (e.code === 'Digit3' || e.code === 'Numpad3') {
-        e.preventDefault();
-        const abilities = this.getAbilitiesForVocation(this.player);
-        if (abilities[2]) this.handleTriggerAbility(abilities[2].id);
-      } else if (e.code === 'Digit4' || e.code === 'Numpad4') {
-        e.preventDefault();
-        this.handleUseBackpackItem(0);
-      } else if (e.code === 'Digit5' || e.code === 'Numpad5') {
-        e.preventDefault();
-        this.handleUseBackpackItem(1);
-      } else if (e.code === 'Digit6' || e.code === 'Numpad6') {
-        e.preventDefault();
-        this.handleUseBackpackItem(2);
-      } else if (e.code === 'Digit7' || e.code === 'Numpad7') {
-        e.preventDefault();
-        this.handleUseBackpackItem(3);
-      } else if (e.code === 'Digit8' || e.code === 'Numpad8') {
-        e.preventDefault();
-        this.handleUseBackpackItem(4);
-      } else if (e.code === 'Digit9' || e.code === 'Numpad9') {
-        e.preventDefault();
-        this.handleUseBackpackItem(5);
-      } else if (e.code === 'KeyE' || e.code === 'Space') {
-        e.preventDefault();
-        this.handlePickUp();
-      } else if (e.code === 'KeyU') {
-        e.preventDefault();
-        this.handleUseGround();
+        this.gestureEngine.handleInputDown(slotIdx);
       }
     });
 
     window.addEventListener('keyup', e => {
       this.keysDown.delete(e.code);
+
+      const slotIdx = GestureEngine.keyToSlotIndex(e.key);
+      if (slotIdx !== null) {
+        e.preventDefault();
+        this.gestureEngine.handleInputUp(slotIdx);
+      }
     });
 
-    // Canvas click targeting
+    // Canvas click: targeting or looting
     this.canvas.addEventListener('click', e => {
       soundFX.init();
       const rect = this.canvas.getBoundingClientRect();
@@ -1351,7 +1226,13 @@ export class LokartaApp {
         this.selectedMonsterId = clickedMonster.id;
         this.logCombat(`Targeted ${clickedMonster.name} (${clickedMonster.hp}/${clickedMonster.max_hp} HP).`, 'system');
       } else {
-        this.selectedMonsterId = null;
+        const clickedItems = this.gridMap.getItems(gridPos.x, gridPos.y);
+        if (clickedItems.length > 0) {
+          const topItem = clickedItems[clickedItems.length - 1];
+          this.logCombat(`Ground inspection: ${topItem.name} (${topItem.type}) on tile (${gridPos.x}, ${gridPos.y}).`, 'system');
+        } else {
+          this.selectedMonsterId = null;
+        }
       }
     });
 
@@ -1362,89 +1243,100 @@ export class LokartaApp {
       btn.addEventListener('touchstart', e => {
         e.preventDefault();
         soundFX.init();
-        if (key === 'KeyE') {
-          this.handlePickUp();
-        } else {
-          this.keysDown.add(key);
-        }
+        this.keysDown.add(key);
       });
       btn.addEventListener('touchend', e => {
         e.preventDefault();
-        if (key !== 'KeyE') {
-          this.keysDown.delete(key);
-        }
+        this.keysDown.delete(key);
       });
     });
   }
 
-  // ==========================================================================
-  // Abilities & Combat Actions
-  // ==========================================================================
-
-  getAbilitiesForVocation(player) {
-    if (player.vocation === 'magician') {
-      return [
-        {
-          id: 'wand_spark',
-          name: 'Wand Spark',
-          hotkey: '1',
-          icon: '✨',
-          costText: '0 MP',
-          description: '12–16 Magic Dmg to targeted enemy (LOS <= 5)',
-        },
-        {
-          id: 'light',
-          name: 'Light',
-          hotkey: '2',
-          icon: '💡',
-          costText: '15 MP',
-          description: 'Expands vision to 7 tiles for 30s (5s CD)',
-        },
-        {
-          id: 'energy_beam',
-          name: 'Energy Beam',
-          hotkey: '3',
-          icon: '⚡',
-          costText: '30 MP',
-          description: '30–40 Piercing Dmg in 4-tile line (3s CD)',
-        },
-      ];
-    } else {
-      return [
-        {
-          id: 'bow_shot',
-          name: 'Bow Shot',
-          hotkey: '1',
-          icon: '🏹',
-          costText: '1 Arrow',
-          description: '14–18 Physical Dmg to targeted enemy (LOS <= 6)',
-        },
-        {
-          id: 'power_shot',
-          name: 'Power Shot',
-          hotkey: '2',
-          icon: '🎯',
-          costText: '1 Arrow',
-          description: '32–42 Heavy Burst Dmg (4s CD)',
-        },
-      ];
+  handleChargeUpdate(slotIndex, ratio) {
+    const slotEl = document.querySelector(`.action-slot-btn[data-slot-index="${slotIndex}"] .charge-fill`);
+    if (slotEl) {
+      slotEl.style.width = `${Math.round(ratio * 100)}%`;
     }
   }
 
-  handleTriggerAbility(abilityId) {
-    if (this.isGameOver) return;
+  handleGestureEvent(event) {
+    const { slotIndex, gesture } = event;
+    const item = this.player.action_bar?.[slotIndex];
+    if (!item) {
+      this.logCombat(`Action Slot ${slotIndex + 1} is empty.`, 'warning');
+      return;
+    }
+
     soundFX.init();
 
-    if (abilityId === 'wand_spark') {
+    // 1. Spells & Weapons executed from slot
+    if (item.type === 'spell' || item.type === 'weapon') {
+      this.executeActionSlotCombat(item, gesture);
+      return;
+    }
+
+    // 2. Consumable items (potions)
+    if (item.type === 'consumable') {
+      const res = InventorySystem.consumeItem(this.player, item, () => {
+        if (item.quantity > 1) {
+          item.quantity -= 1;
+        } else {
+          this.player.action_bar[slotIndex] = null;
+        }
+      });
+      if (res.success) {
+        soundFX.playPotionDrink();
+        this.logCombat(res.message, 'loot');
+        this.addFloatingText(`Used ${item.name}!`, this.player.x, this.player.y, '#38bdf8');
+        this.updateHUD();
+        this.persistSave();
+      } else {
+        this.logCombat(res.message, 'warning');
+      }
+      return;
+    }
+
+    // 3. Equippable offhand / armor / relic
+    if (item.type === 'offhand' || item.type === 'armor' || item.type === 'relic') {
+      const eqRes = InventorySystem.equipItem(this.player, 'action_bar', slotIndex);
+      if (eqRes.success) {
+        soundFX.playEquip();
+        this.logCombat(eqRes.message, 'loot');
+        LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
+        this.updateHUD();
+        this.persistSave();
+      } else {
+        this.logCombat(eqRes.message, 'warning');
+      }
+    }
+  }
+
+  executeActionSlotCombat(item, gesture) {
+    const itemId = item.item_id || '';
+
+    // Wand Spark / apprentice wand
+    if (itemId.includes('spark') || itemId.includes('wand') || itemId.includes('scepter')) {
       const target = this.getTargetMonster(CONFIG.MAGICIAN_SPARK_RANGE);
       if (!target) {
-        this.logCombat('No visible enemy in range for Wand Spark (click enemy to target).', 'warning');
+        this.logCombat('No enemy in range for Wand Spark (click enemy to target).', 'warning');
         return;
       }
       soundFX.playWandSpark();
       const res = CombatSystem.executeWandSpark(this.player, target, this.gridMap);
       this.handleCombatResult(res, target.x, target.y);
-    } else if (abilityId === 'light') {
+    }
+    // Energy Beam
+    else if (itemId.includes('beam')) {
+      const res = CombatSystem.executeEnergyBeam(this.player, this.player.facing, this.gridMap, this.monsters);
+      if (res.success) {
+        soundFX.playEnergyBeam();
+        this.handleCombatResult(res, this.player.x, this.player.y);
+      } else {
+        this.logCombat(res.message, 'warning');
+      }
+    }
+    // Light Spell
+    else if (itemId.includes('light')) {
       const res = CombatSystem.executeLightSpell(this.player);
       if (res.success) {
         soundFX.playLightSpell();
@@ -1454,31 +1346,65 @@ export class LokartaApp {
       } else {
         this.logCombat(res.message, 'warning');
       }
-    } else if (abilityId === 'energy_beam') {
-      const res = CombatSystem.executeEnergyBeam(this.player, this.player.facing, this.gridMap, this.monsters);
-      if (res.success) {
-        soundFX.playEnergyBeam();
-        this.handleCombatResult(res, this.player.x, this.player.y);
-      } else {
-        this.logCombat(res.message, 'warning');
+    }
+    // Bow Shot / Power Shot / bow weapons
+    else if (itemId.includes('power_shot')) {
+      const target = this.getTargetMonster(CONFIG.ARCHER_POWER_SHOT_RANGE);
+      if (!target) {
+        this.logCombat('No enemy in range for Power Shot.', 'warning');
+        return;
       }
-    } else if (abilityId === 'bow_shot') {
+      soundFX.playPowerShot();
+      const res = CombatSystem.executePowerShot(this.player, target, this.gridMap);
+      this.handleCombatResult(res, target.x, target.y);
+    } else if (itemId.includes('bow') || itemId.includes('shot')) {
       const target = this.getTargetMonster(CONFIG.ARCHER_BOW_RANGE);
       if (!target) {
-        this.logCombat('No visible enemy in range for Bow Shot (click enemy to target).', 'warning');
+        this.logCombat('No enemy in range for Bow Shot.', 'warning');
         return;
       }
       soundFX.playBowShot();
       const res = CombatSystem.executeBowShot(this.player, target, this.gridMap);
       this.handleCombatResult(res, target.x, target.y);
-    } else if (abilityId === 'power_shot') {
-      const target = this.getTargetMonster(CONFIG.ARCHER_POWER_SHOT_RANGE);
+    }
+    // Sword Slash / Broadsword / Cleave
+    else if (itemId.includes('cleave')) {
+      const target = this.getTargetMonster(1.5);
       if (!target) {
-        this.logCombat('No visible enemy in range for Power Shot (click enemy to target).', 'warning');
+        this.logCombat('No adjacent enemy for Cleave.', 'warning');
         return;
       }
-      soundFX.playPowerShot();
-      const res = CombatSystem.executePowerShot(this.player, target, this.gridMap);
+      soundFX.playHit();
+      const res = CombatSystem.executeSlash(this.player, target, this.gridMap);
+      this.handleCombatResult(res, target.x, target.y);
+    } else if (itemId.includes('sword') || itemId.includes('slash')) {
+      const target = this.getTargetMonster(1.5);
+      if (!target) {
+        this.logCombat('No adjacent enemy for melee attack.', 'warning');
+        return;
+      }
+      soundFX.playHit();
+      const res = CombatSystem.executeSlash(this.player, target, this.gridMap);
+      this.handleCombatResult(res, target.x, target.y);
+    }
+    // Paladin Holy Strike / Healing Prayer / Warhammer
+    else if (itemId.includes('prayer') || itemId.includes('heal')) {
+      const res = CombatSystem.executeHealingPrayer(this.player);
+      if (res.success) {
+        soundFX.playLightSpell();
+        this.logCombat(res.message, 'spell');
+        this.addFloatingText(`+${res.healAmount} HP`, this.player.x, this.player.y, '#22c55e');
+      } else {
+        this.logCombat(res.message, 'warning');
+      }
+    } else if (itemId.includes('holy') || itemId.includes('warhammer') || itemId.includes('radiance')) {
+      const target = this.getTargetMonster(1.5);
+      if (!target) {
+        this.logCombat('No adjacent enemy for Holy Strike.', 'warning');
+        return;
+      }
+      soundFX.playHit();
+      const res = CombatSystem.executeHolyStrike(this.player, target, this.gridMap);
       this.handleCombatResult(res, target.x, target.y);
     }
 
@@ -1489,7 +1415,6 @@ export class LokartaApp {
     const bonusRng = this.player.skillBoosts?.bonusRange || 0;
     const effectiveRange = maxRange + bonusRng;
 
-    // Check selected target
     if (this.selectedMonsterId) {
       const monster = this.monsters.find(m => m.id === this.selectedMonsterId && m.hp > 0);
       if (monster && monster.visible) {
@@ -1498,7 +1423,6 @@ export class LokartaApp {
       }
     }
 
-    // Auto-target closest visible monster within range and LOS
     let closest = null;
     let minDist = effectiveRange + 1;
 
@@ -1525,18 +1449,13 @@ export class LokartaApp {
       return;
     }
 
-    if (res.message) {
-      this.logCombat(res.message, 'combat');
-    }
-
+    if (res.message) this.logCombat(res.message, 'combat');
     if (res.damageDealt) {
       soundFX.playHit();
       this.addFloatingText(`-${res.damageDealt}`, targetX, targetY, '#ffdd44');
     }
 
-    if (res.projectiles) {
-      this.projectiles.push(...res.projectiles);
-    }
+    if (res.projectiles) this.projectiles.push(...res.projectiles);
 
     if (res.defeatedMonsterId) {
       soundFX.playMonsterDeath();
@@ -1550,7 +1469,6 @@ export class LokartaApp {
           }
         }
 
-        // Calculate and award XP
         const isBoss = deadMonster.isBoss || deadMonster.id.includes('boss') || deadMonster.max_hp >= 200;
         const xpEarned = ProgressionSystem.getMonsterXp(deadMonster.type, this.player.current_floor || 1, isBoss);
         const lvlRes = ProgressionSystem.awardXP(this.player, xpEarned);
@@ -1561,11 +1479,12 @@ export class LokartaApp {
         if (lvlRes.leveledUp) {
           soundFX.playLevelUp();
           this.logCombat(
-            `⭐ LEVEL UP! You reached Level ${lvlRes.newLevel}! (+${lvlRes.hpGained} Max HP, +${lvlRes.manaGained} Max MP, +${lvlRes.damagePercentGained}% Damage)`,
+            `⭐ LEVEL UP! You reached Level ${lvlRes.newLevel}! (+${lvlRes.hpGained} Max HP, +${lvlRes.manaGained} Max MP)`,
             'spell'
           );
           this.addFloatingText(`⭐ LEVEL UP! [Lv. ${lvlRes.newLevel}]`, this.player.x, this.player.y, '#ffd700');
           this.persistSave();
+          this.showFateGrantModal(lvlRes.newLevel);
         }
 
         this.monsters.splice(index, 1);
@@ -1573,11 +1492,8 @@ export class LokartaApp {
           this.selectedMonsterId = null;
         }
 
-        // Check if Floor 20 Boss was slain
-        if (isBoss && (this.player.current_floor >= 20)) {
-          setTimeout(() => {
-            this.handleFloorClear();
-          }, 600);
+        if (isBoss && this.player.current_floor >= 20) {
+          setTimeout(() => this.handleFloorClear(), 600);
         }
       }
     }
@@ -1596,36 +1512,15 @@ export class LokartaApp {
       this.addFloatingText(`+${res.item?.name}`, this.player.x, this.player.y, '#22c55e');
       this.updateHUD();
       await this.persistSave();
-    } else {
-      this.logCombat(res.message, 'warning');
     }
   }
 
-  async handleDropBackpackItem(slotIndex) {
+  async handleDropItem(source, slotIndex) {
     soundFX.init();
-    const res = InventorySystem.dropItem(this.player, slotIndex, this.gridMap);
+    const res = InventorySystem.dropItem(this.player, source, slotIndex, this.gridMap);
     if (res.success) {
       soundFX.playUnequip();
       this.logCombat(res.message, 'system');
-      this.updateHUD();
-      await this.persistSave();
-    } else {
-      this.logCombat(res.message, 'warning');
-    }
-  }
-
-  async handleUseBackpackItem(slotIndex) {
-    soundFX.init();
-    const res = InventorySystem.useBackpackItem(this.player, slotIndex);
-    if (res.success) {
-      this.logCombat(res.message, 'loot');
-      if (res.item?.item_id.includes('potion')) {
-        soundFX.playPotionDrink();
-        this.addFloatingText(`Used ${res.item.name}!`, this.player.x, this.player.y, '#38bdf8');
-      } else {
-        soundFX.playEquip();
-      }
-      LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
       this.updateHUD();
       await this.persistSave();
     } else {
@@ -1647,24 +1542,6 @@ export class LokartaApp {
     }
   }
 
-  async handleUseGround() {
-    soundFX.init();
-    const res = InventorySystem.useGroundItem(this.player, this.gridMap);
-    if (res.success) {
-      this.logCombat(res.message, 'loot');
-      if (res.item?.item_id.includes('potion')) {
-        soundFX.playPotionDrink();
-        this.addFloatingText(`Used ${res.item.name}!`, this.player.x, this.player.y, '#38bdf8');
-      } else {
-        soundFX.playEquip();
-      }
-      this.updateHUD();
-      await this.persistSave();
-    } else {
-      this.logCombat(res.message, 'warning');
-    }
-  }
-
   async persistSave() {
     try {
       await this.gameClient.saveCharacter(this.player);
@@ -1672,10 +1549,6 @@ export class LokartaApp {
       console.warn('Auto-save error:', err);
     }
   }
-
-  // ==========================================================================
-  // Floor Clear & Transitions
-  // ==========================================================================
 
   async handleFloorClear() {
     if (this.player.current_floor < 20) {
@@ -1696,6 +1569,7 @@ export class LokartaApp {
           `⭐ LEVEL UP! You reached Level ${lvlRes.newLevel}! (+${lvlRes.hpGained} Max HP, +${lvlRes.manaGained} Max MP)`,
           'spell'
         );
+        this.showFateGrantModal(lvlRes.newLevel);
       }
 
       try {
@@ -1710,12 +1584,10 @@ export class LokartaApp {
         console.error('Floor transition error:', err);
       }
     } else {
-      // Floor 20 Final Clear!
       this.isFloorCleared = true;
       soundFX.playVictory();
       this.logCombat('🎉 YOU CONQUERED THE ABYSSAL SANCTUM! ALL 20 FLOORS CLEARED!', 'victory');
       this.addFloatingText('CAMPAIGN COMPLETED!', this.player.x, this.player.y, '#ffd700');
-
       this.showVictoryModal();
     }
   }
@@ -1793,6 +1665,7 @@ export class LokartaApp {
           dmgBonusPct > 0 || this.player.skillBoosts?.bonusRange || this.player.skillBoosts?.bonusRegen
             ? `<div class="skill-boosts-summary">
                 <span>⚡ +${dmgBonusPct}% Damage</span>
+                <span>✨ 2.5x Class Mastery</span>
                 ${this.player.skillBoosts?.bonusRange ? `<span>🏹 +${this.player.skillBoosts.bonusRange} Range</span>` : ''}
                 ${this.player.skillBoosts?.bonusRegen ? `<span>❤️ +${this.player.skillBoosts.bonusRegen} Regen</span>` : ''}
               </div>`
@@ -1803,7 +1676,7 @@ export class LokartaApp {
           this.player.lightSpellTimer > 0
             ? `<div class="active-buff-badge">
                 <span class="buff-icon">✨</span>
-                <span class="buff-text">Light Aura: <strong>${Math.ceil(this.player.lightSpellTimer)}s</strong> (6 tiles)</span>
+                <span class="buff-text">Light Aura: <strong>${Math.ceil(this.player.lightSpellTimer)}s</strong> (12 tiles)</span>
               </div>`
             : ''
         }
@@ -1815,13 +1688,14 @@ export class LokartaApp {
     if (!this.paperdollEl) return;
     const paperdoll = this.player.paperdoll || {};
     const slots = [
-      { key: 'right_hand', label: 'Right Hand', iconPlaceholder: '⚔️' },
-      { key: 'armor', label: 'Armor', iconPlaceholder: '🛡️' },
-      { key: 'left_hand', label: 'Left Hand', iconPlaceholder: '🕯️' },
+      { key: 'main_hand', label: 'Main Hand', iconPlaceholder: '⚔️' },
+      { key: 'off_hand', label: 'Off Hand', iconPlaceholder: '🛡️' },
+      { key: 'armor', label: 'Armor', iconPlaceholder: '🦺' },
+      { key: 'relic', label: 'Relic', iconPlaceholder: '📿' },
     ];
 
     let html = `
-      <div class="panel-header">EQUIPMENT (PAPERDOLL)</div>
+      <div class="panel-header">EQUIPMENT (4 SLOTS)</div>
       <div class="paperdoll-slots-grid">
     `;
 
@@ -1838,7 +1712,7 @@ export class LokartaApp {
             ${hasItem ? this.renderItemIcon(item) : `<span class="empty-icon">${slot.iconPlaceholder}</span>`}
           </div>
           <div class="slot-item-name">${itemName}</div>
-          ${hasItem ? `<button class="unequip-btn" data-slot="${slot.key}" title="Unequip to backpack">✕</button>` : ''}
+          ${hasItem ? `<button class="unequip-btn" data-slot="${slot.key}" title="Unequip">✕</button>` : ''}
         </div>
       `;
     }
@@ -1872,14 +1746,13 @@ export class LokartaApp {
     for (let i = 0; i < 6; i++) {
       const item = backpack[i] || null;
       const isOccupied = item !== null;
-      const hotkey = i + 4;
       const tooltip = isOccupied
-        ? `${item.name} (${item.type})${item.quantity > 1 ? ` x${item.quantity}` : ''}${item.stat_bonus > 0 ? ` [Stat: +${item.stat_bonus}]` : ''} [${hotkey}]`
-        : `Slot [${hotkey}] (Empty)`;
+        ? `${item.name} (${item.type})${item.quantity > 1 ? ` x${item.quantity}` : ''}${item.stat_bonus > 0 ? ` [Stat: +${item.stat_bonus}]` : ''}`
+        : `Backpack Slot ${i + 1} (Empty)`;
 
       html += `
         <div class="backpack-slot ${isOccupied ? 'occupied' : 'empty'}" data-index="${i}" title="${tooltip}">
-          <div class="slot-num"><span class="slot-hotkey">[${hotkey}]</span></div>
+          <div class="slot-num">#${i + 1}</div>
           <div class="slot-content">
             ${isOccupied ? this.renderItemIcon(item) : ''}
           </div>
@@ -1905,7 +1778,17 @@ export class LokartaApp {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const idx = parseInt(e.currentTarget.getAttribute('data-index') || '-1', 10);
-        if (idx >= 0) this.handleUseBackpackItem(idx);
+        if (idx >= 0) {
+          const res = InventorySystem.useBackpackItem(this.player, idx);
+          if (res.success) {
+            soundFX.playEquip();
+            this.logCombat(res.message, 'loot');
+            this.updateHUD();
+            this.persistSave();
+          } else {
+            this.logCombat(res.message, 'warning');
+          }
+        }
       });
     });
 
@@ -1914,88 +1797,91 @@ export class LokartaApp {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const idx = parseInt(e.currentTarget.getAttribute('data-index') || '-1', 10);
-        if (idx >= 0) this.handleDropBackpackItem(idx);
-      });
-    });
-
-    const slots = this.backpackEl.querySelectorAll('.backpack-slot.occupied');
-    slots.forEach(slot => {
-      slot.addEventListener('click', e => {
-        if (e.target.classList.contains('drop-btn')) return;
-        const idx = parseInt(e.currentTarget.getAttribute('data-index') || '-1', 10);
-        if (idx >= 0) this.handleUseBackpackItem(idx);
+        if (idx >= 0) this.handleDropItem('backpack', idx);
       });
     });
   }
 
   renderHotbar() {
     if (!this.hotbarEl) return;
-    const abilities = this.getAbilitiesForVocation(this.player);
-    const groundItems = this.gridMap.getItems(this.player.x, this.player.y);
+    const actionBar = this.player.action_bar || Array(10).fill(null);
 
     let html = `
-      <div class="panel-header">ACTIONS & ABILITY HOTBAR</div>
-      <div class="hotbar-buttons-container">
-        <div class="ability-buttons-group">
+      <div class="panel-header">ACTIONS & ABILITIES (KEYS 1-9, 0)</div>
+      <div class="action-slots-container">
+        <div class="action-slots-grid">
     `;
 
-    for (const ability of abilities) {
-      const cd = this.player.cooldowns?.[ability.id] || 0;
+    for (let i = 0; i < 10; i++) {
+      const item = actionBar[i] || null;
+      const hotkey = GestureEngine.slotIndexToHotkey(i);
+      const isOccupied = item !== null;
+      const cdKey = item?.item_id?.replace('spell_', '') || '';
+      const cd = this.player.cooldowns?.[cdKey] || 0;
       const isOnCooldown = cd > 0;
+      const isNative = isOccupied && CombatSystem.isNativeItem(item, this.player.vocation);
+
+      const title = isOccupied
+        ? `${item.name} [${hotkey}] (${item.type}) - Tap / Hold / Double-Tap${isNative ? ' [★ 2.5x Mastery]' : ''}`
+        : `Slot [${hotkey}] (Empty)`;
 
       html += `
-        <button class="hotbar-btn ability-btn ${isOnCooldown ? 'on-cooldown' : ''}" data-ability="${ability.id}" title="${ability.name} [${ability.hotkey}]: ${ability.description} (${ability.costText})">
-          <div class="hotkey-badge">[${ability.hotkey}]</div>
-          <div class="btn-icon">${ability.icon}</div>
-          <div class="btn-name">${ability.name}</div>
-          <div class="btn-cost">${ability.costText}</div>
+        <button class="action-slot-btn ${isOnCooldown ? 'on-cooldown' : ''}" data-slot-index="${i}" title="${title}">
+          <div class="hotkey-badge">[${hotkey}]</div>
+          <div class="btn-icon">${isOccupied ? this.renderItemIcon(item) : '•'}</div>
+          <div class="btn-name">${isOccupied ? item.name : 'Empty'}</div>
+          <div class="btn-cost">${isOccupied ? (item.quantity > 1 ? `x${item.quantity}` : (item.manaCost ? `${item.manaCost} MP` : 'Ready')) : ''}</div>
           ${isOnCooldown ? `<div class="cooldown-overlay">${cd.toFixed(1)}s</div>` : ''}
+          <div class="charge-bar-track"><div class="charge-fill"></div></div>
         </button>
       `;
     }
 
     html += `
         </div>
-        <div class="ground-actions-group">
-          <button class="hotbar-btn ground-btn" id="btn-pickup" title="Pick up top item from floor [E] / [Space]">
-            <div class="hotkey-badge">[E]</div>
-            <div class="btn-icon">📥</div>
-            <div class="btn-name">Pick Up</div>
-            <div class="btn-cost">${groundItems.length > 0 ? `${groundItems.length} on floor` : 'Empty'}</div>
-          </button>
-          <button class="hotbar-btn ground-btn" id="btn-use-ground" title="Directly drink potion from current floor tile [U]">
-            <div class="hotkey-badge">[U]</div>
-            <div class="btn-icon">🧪</div>
-            <div class="btn-name">Use Floor</div>
-            <div class="btn-cost">Potion</div>
-          </button>
-        </div>
       </div>
     `;
 
     this.hotbarEl.innerHTML = html;
 
-    const abilityBtns = this.hotbarEl.querySelectorAll('.ability-btn');
-    abilityBtns.forEach(btn => {
-      btn.addEventListener('click', e => {
-        const abilityId = e.currentTarget.getAttribute('data-ability');
-        if (abilityId) this.handleTriggerAbility(abilityId);
+    const actionSlotButtons = this.hotbarEl.querySelectorAll('.action-slot-btn');
+    actionSlotButtons.forEach(btn => {
+      const slotIndex = parseInt(btn.getAttribute('data-slot-index') || '0', 10);
+
+      btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        this.gestureEngine.handleInputDown(slotIndex);
+      });
+
+      btn.addEventListener('pointerup', e => {
+        e.preventDefault();
+        this.gestureEngine.handleInputUp(slotIndex);
+      });
+
+      btn.addEventListener('pointerleave', () => {
+        this.gestureEngine.handleInputUp(slotIndex);
       });
     });
-
-    document.getElementById('btn-pickup')?.addEventListener('click', () => this.handlePickUp());
-    document.getElementById('btn-use-ground')?.addEventListener('click', () => this.handleUseGround());
   }
 
   renderItemIcon(item) {
+    if (!item) return '•';
+    if (item.icon) return item.icon;
     if (item.item_id === 'health_potion') return '🧪';
     if (item.item_id === 'mana_potion') return '⚗️';
     if (item.item_id === 'torch') return '🔥';
     if (item.item_id === 'arrows') return '🏹';
-    if (item.item_id.includes('wand')) return '🪄';
-    if (item.item_id.includes('robe')) return '🥋';
-    if (item.item_id.includes('armor')) return '🦺';
+    if (item.item_id.includes('wand') || item.item_id.includes('scepter')) return '🪄';
+    if (item.item_id.includes('spark')) return '✨';
+    if (item.item_id.includes('beam')) return '⚡';
+    if (item.item_id.includes('light')) return '💡';
     if (item.item_id.includes('bow')) return '🏹';
+    if (item.item_id.includes('sword') || item.item_id.includes('slash')) return '⚔️';
+    if (item.item_id.includes('warhammer') || item.item_id.includes('hammer')) return '🔨';
+    if (item.item_id.includes('prayer') || item.item_id.includes('heal')) return '💖';
+    if (item.item_id.includes('armor') || item.item_id.includes('plate')) return '🦺';
+    if (item.item_id.includes('buckler') || item.item_id.includes('shield')) return '🛡️';
+    if (item.item_id.includes('relic') || item.item_id.includes('amulet') || item.item_id.includes('crest')) return '👑';
     return '📦';
   }
 
@@ -2043,10 +1929,9 @@ export class LokartaApp {
         <div class="character-summary">
           <p><strong>Vocation:</strong> ${(this.player.vocation || 'magician').toUpperCase()}</p>
           <p><strong>Final Level:</strong> Level ${this.player.level || 1}</p>
-          <p><strong>Damage Boost:</strong> +${Math.round(((this.player.skillBoosts?.damageMultiplier || 1) - 1) * 100)}%</p>
+          <p><strong>Damage Boost:</strong> +${Math.round(((this.player.skillBoosts?.damageMultiplier || 1) - 1) * 100)}% (2.5x Mastery)</p>
           <p><strong>Remaining HP:</strong> ${this.player.hp} / ${this.player.max_hp}</p>
           <p><strong>Remaining MP:</strong> ${this.player.mana} / ${this.player.max_mana}</p>
-          <p><strong>Backpack Items:</strong> ${(this.player.backpack || []).filter(Boolean).length} / 6 slots</p>
         </div>
         <button class="action-btn" id="btn-restart">Play Again</button>
       </div>
