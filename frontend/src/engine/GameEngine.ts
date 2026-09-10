@@ -22,7 +22,7 @@ import {
   Direction,
 } from '../types/entity';
 import { LightEmitter } from '../types/world';
-import { PaperdollSlotType } from '../types/item';
+import { Item, PaperdollSlotType } from '../types/item';
 import { GestureEvent, GestureType } from '../types/action';
 import { FateCard } from '../types/fate';
 import { VocationType, CharacterResponse, DungeonFloorResponse } from '../types/api';
@@ -530,9 +530,56 @@ export class GameEngine {
 
     if (item.type === 'spell') {
       this.executeSpellAbility(item.item_id, gesture);
+    } else if (item.type === 'weapon') {
+      this.executeWeaponAbility(item, gesture);
+    } else if (item.type === 'offhand') {
+      this.executeOffhandAbility(item, gesture, slotIndex);
     } else if (item.type === 'consumable') {
       this.handleUseActionBarItem(slotIndex);
-    } else if (item.type === 'weapon' || item.type === 'offhand' || item.type === 'armor' || item.type === 'relic' || item.item_id === 'torch') {
+    } else if (item.type === 'armor' || item.type === 'relic' || item.item_id === 'torch') {
+      this.handleEquipFromActionBar(slotIndex);
+    }
+  }
+
+  private executeWeaponAbility(item: Item, gesture: GestureType): void {
+    const id = item.item_id.toLowerCase();
+    if (id.includes('bow')) {
+      if (gesture === 'hold') {
+        this.executeSpellAbility('spell_power_shot', gesture);
+      } else {
+        this.executeSpellAbility('spell_bow_shot', gesture);
+      }
+    } else if (id.includes('sword') || id.includes('blade') || id.includes('dagger') || id.includes('axe')) {
+      if (gesture === 'hold') {
+        this.executeSpellAbility('spell_cleave', gesture);
+      } else {
+        this.executeSpellAbility('spell_slash', gesture);
+      }
+    } else if (id.includes('wand') || id.includes('scepter') || id.includes('staff')) {
+      if (gesture === 'hold') {
+        this.executeSpellAbility('spell_energy_beam', gesture);
+      } else {
+        this.executeSpellAbility('spell_wand_spark', gesture);
+      }
+    } else if (id.includes('hammer') || id.includes('mace')) {
+      if (gesture === 'hold') {
+        this.executeSpellAbility('spell_holy_radiance', gesture);
+      } else {
+        this.executeSpellAbility('spell_holy_strike', gesture);
+      }
+    } else {
+      // Default melee slash
+      this.executeSpellAbility('spell_slash', gesture);
+    }
+  }
+
+  private executeOffhandAbility(item: Item, gesture: GestureType, slotIndex: number): void {
+    const id = item.item_id.toLowerCase();
+    if (id.includes('shield') || id.includes('aegis') || id.includes('buckler')) {
+      this.executeSpellAbility('spell_fortify', gesture);
+    } else if (id.includes('orb') || id.includes('tome') || id.includes('light')) {
+      this.executeSpellAbility('spell_light', gesture);
+    } else {
       this.handleEquipFromActionBar(slotIndex);
     }
   }

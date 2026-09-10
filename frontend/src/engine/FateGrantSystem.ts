@@ -509,6 +509,26 @@ export class FateGrantSystem {
         }
       }
 
+      // If drafting a bow weapon/spell, grant a starter quiver of 20 arrows if none exist
+      if (itemToPlace.item_id.includes('bow')) {
+        const hasArrows = player.action_bar.some(s => s?.item_id === 'arrows') || player.backpack.some(s => s?.item_id === 'arrows');
+        if (!hasArrows) {
+          const arrowItem: Item = {
+            item_id: 'arrows',
+            name: 'Arrows',
+            type: 'ammo',
+            quantity: 20,
+            stat_bonus: 0,
+            icon: '🏹',
+          };
+          const emptyBp = player.backpack.findIndex(s => s === null);
+          if (emptyBp !== -1) {
+            player.backpack[emptyBp] = arrowItem;
+            result.addedToBackpack.push('Starter Arrows (x20)');
+          }
+        }
+      }
+
       if (placedInHotbar) continue;
 
       // 2. Try placing into lowest empty Backpack Slot (0..5)

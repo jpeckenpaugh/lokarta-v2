@@ -79,6 +79,13 @@ export class CombatSystem {
     return true;
   }
 
+  public static getNativeClassMultiplier(playerVocation: string, nativeVocation: string): number {
+    if (playerVocation === nativeVocation) {
+      return 2.5; // 2.5x damage/healing mastery bonus for native class
+    }
+    return 1.0;
+  }
+
   // --- MAGICIAN ABILITIES ---
 
   public static executeWandSpark(
@@ -95,6 +102,7 @@ export class CombatSystem {
     const mult = player.skillBoosts?.damageMultiplier || 1.0;
     const bonusRng = player.skillBoosts?.bonusRange || 0;
     const chargeMult = gesture === 'hold' ? 1.5 : gesture === 'double_tap' ? 1.3 : 1.0;
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'magician');
 
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
     if (dist > (CONFIG.MAGICIAN_SPARK_RANGE + bonusRng) + 0.5) {
@@ -107,7 +115,7 @@ export class CombatSystem {
 
     player.cooldowns[cdKey] = CONFIG.MAGICIAN_SPARK_COOLDOWN_SEC;
     const baseDmg = CombatSystem.randomBetween(CONFIG.MAGICIAN_SPARK_DAMAGE_MIN, CONFIG.MAGICIAN_SPARK_DAMAGE_MAX);
-    const damage = Math.round(baseDmg * mult * chargeMult);
+    const damage = Math.round(baseDmg * mult * chargeMult * classMult);
     target.hp -= damage;
 
     const projectile: Projectile = {
@@ -209,11 +217,13 @@ export class CombatSystem {
     const defeatedIds: string[] = [];
     const allLoot: Item[] = [];
 
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'magician');
+
     for (const monster of monsters) {
       const hit = beamTiles.some(t => t.x === monster.x && t.y === monster.y);
       if (hit) {
         const baseDmg = CombatSystem.randomBetween(CONFIG.MAGICIAN_BEAM_DAMAGE_MIN, CONFIG.MAGICIAN_BEAM_DAMAGE_MAX);
-        const damage = Math.round(baseDmg * mult * chargeMult);
+        const damage = Math.round(baseDmg * mult * chargeMult * classMult);
         monster.hp -= damage;
         totalDamage += damage;
         hits++;
@@ -272,6 +282,7 @@ export class CombatSystem {
     const mult = player.skillBoosts?.damageMultiplier || 1.0;
     const bonusRng = player.skillBoosts?.bonusRange || 0;
     const chargeMult = gesture === 'hold' ? 1.5 : gesture === 'double_tap' ? 1.3 : 1.0;
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'archer');
 
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
     if (dist > (CONFIG.ARCHER_BOW_RANGE + bonusRng) + 0.5) {
@@ -288,7 +299,7 @@ export class CombatSystem {
 
     player.cooldowns['bow_shot'] = CONFIG.ARCHER_BOW_COOLDOWN_SEC;
     const baseDmg = CombatSystem.randomBetween(CONFIG.ARCHER_BOW_DAMAGE_MIN, CONFIG.ARCHER_BOW_DAMAGE_MAX);
-    const damage = Math.round(baseDmg * mult * chargeMult);
+    const damage = Math.round(baseDmg * mult * chargeMult * classMult);
     target.hp -= damage;
 
     const projectile: Projectile = {
@@ -337,6 +348,7 @@ export class CombatSystem {
 
     const mult = player.skillBoosts?.damageMultiplier || 1.0;
     const bonusRng = player.skillBoosts?.bonusRange || 0;
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'archer');
 
     const dist = Math.hypot(target.x - player.x, target.y - player.y);
     if (dist > (CONFIG.ARCHER_POWER_SHOT_RANGE + bonusRng) + 0.5) {
@@ -353,7 +365,7 @@ export class CombatSystem {
 
     player.cooldowns['power_shot'] = CONFIG.ARCHER_POWER_SHOT_COOLDOWN_SEC;
     const baseDmg = CombatSystem.randomBetween(CONFIG.ARCHER_POWER_SHOT_DAMAGE_MIN, CONFIG.ARCHER_POWER_SHOT_DAMAGE_MAX);
-    const damage = Math.round(baseDmg * mult);
+    const damage = Math.round(baseDmg * mult * classMult);
     target.hp -= damage;
 
     const projectile: Projectile = {
@@ -409,10 +421,11 @@ export class CombatSystem {
 
     const mult = player.skillBoosts?.damageMultiplier || 1.0;
     const chargeMult = gesture === 'hold' ? 1.5 : gesture === 'double_tap' ? 1.3 : 1.0;
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'fighter');
 
     player.cooldowns[cdKey] = CONFIG.FIGHTER_SLASH_COOLDOWN_SEC;
     const baseDmg = CombatSystem.randomBetween(CONFIG.FIGHTER_SLASH_DAMAGE_MIN, CONFIG.FIGHTER_SLASH_DAMAGE_MAX);
-    const damage = Math.round(baseDmg * mult * chargeMult);
+    const damage = Math.round(baseDmg * mult * chargeMult * classMult);
     target.hp -= damage;
 
     const projectile: Projectile = {
@@ -466,6 +479,7 @@ export class CombatSystem {
     player.cooldowns['cleave'] = CONFIG.FIGHTER_CLEAVE_COOLDOWN_SEC;
 
     const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'fighter');
     let totalDamage = 0;
     let hits = 0;
     const defeatedIds: string[] = [];
@@ -475,7 +489,7 @@ export class CombatSystem {
       const dist = Math.hypot(monster.x - player.x, monster.y - player.y);
       if (dist <= 1.5) {
         const baseDmg = CombatSystem.randomBetween(CONFIG.FIGHTER_CLEAVE_DAMAGE_MIN, CONFIG.FIGHTER_CLEAVE_DAMAGE_MAX);
-        const damage = Math.round(baseDmg * mult);
+        const damage = Math.round(baseDmg * mult * classMult);
         monster.hp -= damage;
         totalDamage += damage;
         hits++;
@@ -549,9 +563,10 @@ export class CombatSystem {
 
     const mult = player.skillBoosts?.damageMultiplier || 1.0;
     const chargeMult = gesture === 'hold' ? 1.5 : gesture === 'double_tap' ? 1.3 : 1.0;
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'paladin');
 
     const baseDmg = CombatSystem.randomBetween(CONFIG.PALADIN_HOLY_STRIKE_DAMAGE_MIN, CONFIG.PALADIN_HOLY_STRIKE_DAMAGE_MAX);
-    const damage = Math.round(baseDmg * mult * chargeMult);
+    const damage = Math.round(baseDmg * mult * chargeMult * classMult);
     target.hp -= damage;
 
     const projectile: Projectile = {
@@ -601,7 +616,9 @@ export class CombatSystem {
     player.mana -= CONFIG.PALADIN_HEAL_MANA_COST;
     player.cooldowns['healing_prayer'] = CONFIG.PALADIN_HEAL_COOLDOWN_SEC;
 
-    const healAmount = CombatSystem.randomBetween(CONFIG.PALADIN_HEAL_AMOUNT_MIN, CONFIG.PALADIN_HEAL_AMOUNT_MAX);
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'paladin');
+    const baseHeal = CombatSystem.randomBetween(CONFIG.PALADIN_HEAL_AMOUNT_MIN, CONFIG.PALADIN_HEAL_AMOUNT_MAX);
+    const healAmount = Math.round(baseHeal * classMult);
     const prevHp = player.hp;
     player.hp = Math.min(player.max_hp, player.hp + healAmount);
     const actualHealed = player.hp - prevHp;
@@ -629,6 +646,7 @@ export class CombatSystem {
     player.cooldowns['holy_radiance'] = CONFIG.PALADIN_RADIANCE_COOLDOWN_SEC;
 
     const mult = player.skillBoosts?.damageMultiplier || 1.0;
+    const classMult = CombatSystem.getNativeClassMultiplier(player.vocation, 'paladin');
     let totalDamage = 0;
     let hits = 0;
     const defeatedIds: string[] = [];
@@ -638,7 +656,7 @@ export class CombatSystem {
       const dist = Math.hypot(monster.x - player.x, monster.y - player.y);
       if (dist <= 2.5) {
         const baseDmg = CombatSystem.randomBetween(CONFIG.PALADIN_RADIANCE_DAMAGE_MIN, CONFIG.PALADIN_RADIANCE_DAMAGE_MAX);
-        const damage = Math.round(baseDmg * mult);
+        const damage = Math.round(baseDmg * mult * classMult);
         monster.hp -= damage;
         totalDamage += damage;
         hits++;

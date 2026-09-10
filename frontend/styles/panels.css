@@ -313,7 +313,7 @@
   border-color: #ef4444;
 }
 
-/* --- 10 Action Slots Hotbar Panel --- */
+/* --- 10 Action Slots Hotbar Panel (2 Rows of 5) --- */
 .hotbar-panel {
   display: flex;
   flex-direction: column;
@@ -321,9 +321,10 @@
 
 .action-slots-bar {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 5px;
-  padding: 10px;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, auto);
+  gap: 8px;
+  padding: 8px 10px;
 }
 
 .action-slot-btn {
@@ -333,13 +334,13 @@
   justify-content: flex-start;
   background-color: #0d0f17;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 4px 2px;
+  border-radius: 6px;
+  padding: 6px 4px;
   cursor: pointer;
   position: relative;
   transition: all 0.15s;
   color: var(--text-primary);
-  min-height: 72px;
+  min-height: 80px;
   overflow: hidden;
 }
 
@@ -362,35 +363,37 @@
 }
 
 .action-slot-btn .slot-hotkey-badge {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-family: var(--font-mono);
   color: var(--gold-accent);
   font-weight: bold;
 }
 
 .action-slot-btn .slot-icon {
-  font-size: 18px;
+  font-size: 26px;
   margin: 2px 0;
-  height: 22px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .action-slot-btn .slot-name {
-  font-size: 0.65rem;
-  font-weight: 500;
+  font-size: 0.72rem;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 95%;
   text-align: center;
+  color: #e2e8f0;
 }
 
 .action-slot-btn .slot-cost {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   color: #38bdf8;
   font-family: var(--font-mono);
+  margin-top: 1px;
 }
 
 .action-slot-btn .cooldown-overlay {
@@ -402,9 +405,9 @@
   justify-content: center;
   color: #f87171;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: bold;
-  border-radius: 3px;
+  border-radius: 5px;
   z-index: 2;
 }
 
@@ -413,7 +416,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 5px;
   background-color: rgba(0, 0, 0, 0.5);
 }
 
