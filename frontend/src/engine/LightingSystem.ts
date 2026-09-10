@@ -20,7 +20,7 @@ export class LightingSystem {
   public static updateLighting(
     gridMap: GridMap,
     player: PlayerEntity,
-    ambientLights: LightEmitter[],
+    _ambientLights: LightEmitter[],
     monsters: MonsterEntity[]
   ): void {
     // 1. Reset all tiles
@@ -32,10 +32,8 @@ export class LightingSystem {
       }
     }
 
-    // 2. Cast light from ambient emitters
-    for (const emitter of ambientLights) {
-      LightingSystem.castLightCircle(gridMap, emitter.x, emitter.y, emitter.radius);
-    }
+    // 2. Ambient room emitters disabled for testing player-only lighting
+    // (Only the player's vision, torch, and spells illuminate the dungeon)
 
     // 3. Cast light from player
     const playerRadius = LightingSystem.computePlayerRadius(player);

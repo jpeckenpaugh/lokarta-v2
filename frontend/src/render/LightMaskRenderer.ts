@@ -8,7 +8,7 @@ export class LightMaskRenderer {
     ctx: CanvasRenderingContext2D,
     gridMap: GridMap,
     player: PlayerEntity,
-    ambientLights: LightEmitter[],
+    _ambientLights: LightEmitter[],
     cameraX: number,
     cameraY: number,
     viewportWidth: number,
@@ -100,28 +100,10 @@ export class LightMaskRenderer {
       ctx.fill();
     }
 
-    // Ambient sconces localized flame glow
-    for (const emitter of ambientLights) {
-      const eScreenX = emitter.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - cameraX;
-      const eScreenY = emitter.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2 - cameraY;
-      const eRadius = 2.0 * CONFIG.GRID_SIZE;
-
-      const eGrad = ctx.createRadialGradient(
-        eScreenX,
-        eScreenY,
-        4,
-        eScreenX,
-        eScreenY,
-        eRadius
-      );
-      eGrad.addColorStop(0, emitter.color === '#88eeff' ? 'rgba(136, 238, 255, 0.25)' : 'rgba(251, 191, 36, 0.22)');
-      eGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-      ctx.fillStyle = eGrad;
-      ctx.beginPath();
-      ctx.arc(eScreenX, eScreenY, eRadius, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Ambient sconces localized flame glow (Disabled for testing player-only lighting)
+    // for (const emitter of ambientLights) {
+    //   ...
+    // }
 
     ctx.restore();
   }
