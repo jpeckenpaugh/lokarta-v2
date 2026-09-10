@@ -12,6 +12,7 @@ from backend.models.character import (
 from backend.models.inventory import (
     ItemDTO,
     PaperdollDTO,
+    ActionSlotDTO,
     BackpackSlotDTO,
 )
 
@@ -21,102 +22,84 @@ DEFAULT_ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "vocation": "magician",
         "hp": 60,
         "max_hp": 60,
-        "mana": 120,
-        "max_mana": 120,
+        "mana": 150,
+        "max_mana": 150,
         "level": 1,
         "xp": 0,
         "xp_to_next_level": 100,
         "current_floor": 1,
         "position": {"x": 2, "y": 2},
+        "action_bar": [],
+        "backpack": [],
         "paperdoll": {
-            "right_hand": {
-                "item_id": "apprentice_wand",
-                "name": "Apprentice Wand",
-                "type": "weapon",
-                "quantity": 1,
-                "stat_bonus": 12,
-            },
-            "left_hand": {
-                "item_id": "torch",
-                "name": "Wooden Torch",
-                "type": "offhand",
-                "quantity": 1,
-                "stat_bonus": 5,
-            },
-            "armor": {
-                "item_id": "cloth_robe",
-                "name": "Cloth Robe",
-                "type": "armor",
-                "quantity": 1,
-                "stat_bonus": 2,
-            },
+            "main_hand": None,
+            "off_hand": None,
+            "armor": None,
+            "relic": None,
         },
-        "backpack": [
-            {
-                "slot_index": 0,
-                "item_id": "mana_potion",
-                "name": "Mana Potion",
-                "type": "consumable",
-                "quantity": 2,
-                "stat_bonus": 40,
-            },
-            {
-                "slot_index": 1,
-                "item_id": "health_potion",
-                "name": "Health Potion",
-                "type": "consumable",
-                "quantity": 1,
-                "stat_bonus": 30,
-            },
-        ],
     },
     "archer": {
         "id": "archer",
         "vocation": "archer",
         "hp": 90,
         "max_hp": 90,
-        "mana": 60,
-        "max_mana": 60,
+        "mana": 80,
+        "max_mana": 80,
         "level": 1,
         "xp": 0,
         "xp_to_next_level": 100,
         "current_floor": 1,
         "position": {"x": 2, "y": 2},
+        "action_bar": [],
+        "backpack": [],
         "paperdoll": {
-            "right_hand": {
-                "item_id": "wooden_bow",
-                "name": "Wooden Bow",
-                "type": "weapon",
-                "quantity": 1,
-                "stat_bonus": 14,
-            },
-            "left_hand": None,
-            "armor": {
-                "item_id": "leather_armor",
-                "name": "Leather Armor",
-                "type": "armor",
-                "quantity": 1,
-                "stat_bonus": 4,
-            },
+            "main_hand": None,
+            "off_hand": None,
+            "armor": None,
+            "relic": None,
         },
-        "backpack": [
-            {
-                "slot_index": 0,
-                "item_id": "arrows",
-                "name": "Arrows",
-                "type": "ammo",
-                "quantity": 15,
-                "stat_bonus": 0,
-            },
-            {
-                "slot_index": 1,
-                "item_id": "health_potion",
-                "name": "Health Potion",
-                "type": "consumable",
-                "quantity": 1,
-                "stat_bonus": 30,
-            },
-        ],
+    },
+    "fighter": {
+        "id": "fighter",
+        "vocation": "fighter",
+        "hp": 140,
+        "max_hp": 140,
+        "mana": 30,
+        "max_mana": 30,
+        "level": 1,
+        "xp": 0,
+        "xp_to_next_level": 100,
+        "current_floor": 1,
+        "position": {"x": 2, "y": 2},
+        "action_bar": [],
+        "backpack": [],
+        "paperdoll": {
+            "main_hand": None,
+            "off_hand": None,
+            "armor": None,
+            "relic": None,
+        },
+    },
+    "paladin": {
+        "id": "paladin",
+        "vocation": "paladin",
+        "hp": 120,
+        "max_hp": 120,
+        "mana": 90,
+        "max_mana": 90,
+        "level": 1,
+        "xp": 0,
+        "xp_to_next_level": 100,
+        "current_floor": 1,
+        "position": {"x": 2, "y": 2},
+        "action_bar": [],
+        "backpack": [],
+        "paperdoll": {
+            "main_hand": None,
+            "off_hand": None,
+            "armor": None,
+            "relic": None,
+        },
     },
 }
 
@@ -132,7 +115,7 @@ class CharacterService:
             if not char_row:
                 normalized_id = char_id.lower()
                 if normalized_id in DEFAULT_ARCHETYPES:
-                    # Seed archetype
+                    # Seed archetype with zero inventory baseline
                     archetype = DEFAULT_ARCHETYPES[normalized_id]
                     save_req = CharacterSaveRequest(**archetype)
                     await CharacterService.save_character(save_req)
@@ -150,10 +133,12 @@ class CharacterService:
             items = await cursor.fetchall()
 
             paperdoll_data: Dict[str, Optional[ItemDTO]] = {
-                "right_hand": None,
-                "left_hand": None,
+                "main_hand": None,
+                "off_hand": None,
                 "armor": None,
+                "relic": None,
             }
+            action_bar_items: List[ActionSlotDTO] = []
             backpack_items: List[BackpackSlotDTO] = []
 
             for item in items:
@@ -166,6 +151,21 @@ class CharacterService:
                         type=item["item_type"],
                         quantity=item["quantity"],
                         stat_bonus=item["stat_bonus"],
+                    )
+                elif loc == "action_bar":
+                    try:
+                        slot_idx = int(slot.replace("slot_", ""))
+                    except ValueError:
+                        slot_idx = 0
+                    action_bar_items.append(
+                        ActionSlotDTO(
+                            slot_index=slot_idx,
+                            item_id=item["item_id"],
+                            name=item["item_name"],
+                            type=item["item_type"],
+                            quantity=item["quantity"],
+                            stat_bonus=item["stat_bonus"],
+                        )
                     )
                 elif loc == "backpack":
                     try:
@@ -183,6 +183,9 @@ class CharacterService:
                         )
                     )
 
+            action_bar_items.sort(key=lambda x: x.slot_index)
+            backpack_items.sort(key=lambda x: x.slot_index)
+
             level_val = char_row["level"] if "level" in char_row.keys() and char_row["level"] is not None else 1
             xp_val = char_row["xp"] if "xp" in char_row.keys() and char_row["xp"] is not None else 0
             xp_next_val = char_row["xp_to_next_level"] if "xp_to_next_level" in char_row.keys() and char_row["xp_to_next_level"] is not None else 100
@@ -199,8 +202,9 @@ class CharacterService:
                 xp_to_next_level=xp_next_val,
                 current_floor=char_row["current_floor"],
                 position=Position(x=char_row["x_pos"], y=char_row["y_pos"]),
-                paperdoll=PaperdollDTO(**paperdoll_data),
+                action_bar=action_bar_items,
                 backpack=backpack_items,
+                paperdoll=PaperdollDTO(**paperdoll_data),
             )
         finally:
             await conn.close()
@@ -253,9 +257,10 @@ class CharacterService:
             # Insert paperdoll slots
             paperdoll = save_data.paperdoll
             paperdoll_slots = [
-                ("right_hand", paperdoll.right_hand),
-                ("left_hand", paperdoll.left_hand),
+                ("main_hand", paperdoll.main_hand),
+                ("off_hand", paperdoll.off_hand),
                 ("armor", paperdoll.armor),
+                ("relic", paperdoll.relic),
             ]
 
             for slot_name, item in paperdoll_slots:
@@ -275,6 +280,25 @@ class CharacterService:
                             item.stat_bonus,
                         ),
                     )
+
+            # Insert action bar slots
+            for ab_item in save_data.action_bar:
+                slot_name = f"slot_{ab_item.slot_index}"
+                await conn.execute(
+                    """
+                    INSERT INTO inventory_items (character_id, location_type, slot_name, item_id, item_name, item_type, quantity, stat_bonus)
+                    VALUES (?, 'action_bar', ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        save_data.id,
+                        slot_name,
+                        ab_item.item_id,
+                        ab_item.name,
+                        ab_item.type,
+                        ab_item.quantity,
+                        ab_item.stat_bonus,
+                    ),
+                )
 
             # Insert backpack slots
             for bp_item in save_data.backpack:

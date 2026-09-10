@@ -34,7 +34,7 @@ async def init_db():
             """
             CREATE TABLE IF NOT EXISTS characters (
                 id TEXT PRIMARY KEY,
-                vocation TEXT NOT NULL CHECK(vocation IN ('magician', 'archer')),
+                vocation TEXT NOT NULL CHECK(vocation IN ('magician', 'archer', 'fighter', 'paladin')),
                 hp INTEGER NOT NULL,
                 max_hp INTEGER NOT NULL,
                 mana INTEGER NOT NULL,
@@ -66,11 +66,11 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS inventory_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 character_id TEXT NOT NULL,
-                location_type TEXT NOT NULL CHECK(location_type IN ('paperdoll', 'backpack')),
+                location_type TEXT NOT NULL CHECK(location_type IN ('action_bar', 'backpack', 'paperdoll')),
                 slot_name TEXT NOT NULL,
                 item_id TEXT NOT NULL,
                 item_name TEXT NOT NULL,
-                item_type TEXT NOT NULL CHECK(item_type IN ('weapon', 'offhand', 'armor', 'consumable', 'ammo')),
+                item_type TEXT NOT NULL CHECK(item_type IN ('weapon', 'offhand', 'armor', 'relic', 'spell', 'consumable', 'ammo', 'tool')),
                 quantity INTEGER NOT NULL DEFAULT 1,
                 stat_bonus INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY(character_id) REFERENCES characters(id) ON DELETE CASCADE

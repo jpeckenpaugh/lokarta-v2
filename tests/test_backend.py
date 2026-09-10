@@ -74,90 +74,100 @@ async def test_get_nonexistent_dungeon_floor():
 
 
 @pytest.mark.asyncio
-async def test_character_seeding_magician():
+async def test_character_seeding_all_four_vocations_zero_inventory():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.get("/api/characters/magician")
-        assert res.status_code == 200
-        data = res.json()
+        vocation_expectations = {
+            "magician": {"hp": 60, "max_hp": 60, "mana": 150, "max_mana": 150},
+            "archer": {"hp": 90, "max_hp": 90, "mana": 80, "max_mana": 80},
+            "fighter": {"hp": 140, "max_hp": 140, "mana": 30, "max_mana": 30},
+            "paladin": {"hp": 120, "max_hp": 120, "mana": 90, "max_mana": 90},
+        }
 
-        assert data["id"] == "magician"
-        assert data["vocation"] == "magician"
-        assert data["hp"] == 60
-        assert data["max_hp"] == 60
-        assert data["mana"] == 120
-        assert data["max_mana"] == 120
-        assert data["position"] == {"x": 2, "y": 2}
+        for voc_id, expected_stats in vocation_expectations.items():
+            res = await client.get(f"/api/characters/{voc_id}")
+            assert res.status_code == 200, f"Failed to seed vocation {voc_id}"
+            data = res.json()
 
-        paperdoll = data["paperdoll"]
-        assert paperdoll["right_hand"]["item_id"] == "apprentice_wand"
-        assert paperdoll["left_hand"]["item_id"] == "torch"
-        assert paperdoll["armor"]["item_id"] == "cloth_robe"
+            assert data["id"] == voc_id
+            assert data["vocation"] == voc_id
+            assert data["hp"] == expected_stats["hp"]
+            assert data["max_hp"] == expected_stats["max_hp"]
+            assert data["mana"] == expected_stats["mana"]
+            assert data["max_mana"] == expected_stats["max_mana"]
+            assert data["level"] == 1
+            assert data["xp"] == 0
+            assert data["xp_to_next_level"] == 100
+            assert data["current_floor"] == 1
+            assert data["position"] == {"x": 2, "y": 2}
 
-        backpack = data["backpack"]
-        assert len(backpack) == 2
-        bp_item_ids = [item["item_id"] for item in backpack]
-        assert "mana_potion" in bp_item_ids
-        assert "health_potion" in bp_item_ids
+            # Zero-inventory baseline assertions
+            assert data["action_bar"] == []
+            assert data["backpack"] == []
+            assert data["paperdoll"] == {
+                "main_hand": None,
+                "off_hand": None,
+                "armor": None,
+                "relic": None,
+            }
 
 
 @pytest.mark.asyncio
-async def test_character_seeding_archer():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.get("/api/characters/archer")
-        assert res.status_code == 200
-        data = res.json()
-
-        assert data["id"] == "archer"
-        assert data["vocation"] == "archer"
-        assert data["hp"] == 90
-        assert data["max_hp"] == 90
-        assert data["mana"] == 60
-        assert data["max_mana"] == 60
-        assert data["position"] == {"x": 2, "y": 2}
-
-        paperdoll = data["paperdoll"]
-        assert paperdoll["right_hand"]["item_id"] == "wooden_bow"
-        assert paperdoll["left_hand"] is None
-        assert paperdoll["armor"]["item_id"] == "leather_armor"
-
-        backpack = data["backpack"]
-        assert len(backpack) == 2
-        bp_item_ids = [item["item_id"] for item in backpack]
-        assert "arrows" in bp_item_ids
-        assert "health_potion" in bp_item_ids
-
-
-@pytest.mark.asyncio
-async def test_character_save_and_persistence():
+async def test_character_save_and_persistence_with_10_action_slots_and_paperdoll():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # First ensure character is initialized
         await client.get("/api/characters/magician")
 
-        # Save mutated state (e.g. took damage, spent mana, moved, picked up loot)
+        # Save mutated state with 10 action slots, 6 backpack slots, and 4 paperdoll slots
+        action_bar_payload = [
+            {
+                "slot_index": i,
+                "item_id": f"spell_slot_{i}",
+                "name": f"Spell {i}",
+                "type": "spell" if i % 2 == 0 else "weapon",
+                "quantity": 1,
+                "stat_bonus": 10 + i,
+            }
+            for i in range(10)
+        ]
+
+        backpack_payload = [
+            {
+                "slot_index": i,
+                "item_id": f"item_bp_{i}",
+                "name": f"Backpack Item {i}",
+                "type": "consumable",
+                "quantity": i + 1,
+                "stat_bonus": 20 + i,
+            }
+            for i in range(6)
+        ]
+
         save_payload = {
             "id": "magician",
             "vocation": "magician",
             "hp": 45,
             "max_hp": 60,
             "mana": 85,
-            "max_mana": 120,
+            "max_mana": 150,
+            "level": 2,
+            "xp": 120,
+            "xp_to_next_level": 200,
             "current_floor": 1,
-            "position": {"x": 12, "y": 14},
+            "position": {"x": 14, "y": 18},
             "paperdoll": {
-                "right_hand": {
+                "main_hand": {
                     "item_id": "apprentice_wand",
                     "name": "Apprentice Wand",
                     "type": "weapon",
                     "quantity": 1,
                     "stat_bonus": 12,
                 },
-                "left_hand": {
+                "off_hand": {
                     "item_id": "torch",
                     "name": "Wooden Torch",
-                    "type": "offhand",
+                    "type": "tool",
                     "quantity": 1,
                     "stat_bonus": 5,
                 },
@@ -168,33 +178,16 @@ async def test_character_save_and_persistence():
                     "quantity": 1,
                     "stat_bonus": 2,
                 },
+                "relic": {
+                    "item_id": "ancient_amulet",
+                    "name": "Ancient Amulet",
+                    "type": "relic",
+                    "quantity": 1,
+                    "stat_bonus": 15,
+                },
             },
-            "backpack": [
-                {
-                    "slot_index": 0,
-                    "item_id": "mana_potion",
-                    "name": "Mana Potion",
-                    "type": "consumable",
-                    "quantity": 3,
-                    "stat_bonus": 40,
-                },
-                {
-                    "slot_index": 1,
-                    "item_id": "health_potion",
-                    "name": "Health Potion",
-                    "type": "consumable",
-                    "quantity": 2,
-                    "stat_bonus": 30,
-                },
-                {
-                    "slot_index": 2,
-                    "item_id": "arrows",
-                    "name": "Arrows",
-                    "type": "ammo",
-                    "quantity": 10,
-                    "stat_bonus": 0,
-                },
-            ],
+            "action_bar": action_bar_payload,
+            "backpack": backpack_payload,
         }
 
         save_res = await client.post("/api/character/save", json=save_payload)
@@ -210,11 +203,28 @@ async def test_character_save_and_persistence():
         fetched = fetch_res.json()
         assert fetched["hp"] == 45
         assert fetched["mana"] == 85
-        assert fetched["position"] == {"x": 12, "y": 14}
-        assert len(fetched["backpack"]) == 3
-        slot_2 = next(item for item in fetched["backpack"] if item["slot_index"] == 2)
-        assert slot_2["item_id"] == "arrows"
-        assert slot_2["quantity"] == 10
+        assert fetched["level"] == 2
+        assert fetched["xp"] == 120
+        assert fetched["xp_to_next_level"] == 200
+        assert fetched["position"] == {"x": 14, "y": 18}
+
+        # Validate paperdoll slots
+        assert fetched["paperdoll"]["main_hand"]["item_id"] == "apprentice_wand"
+        assert fetched["paperdoll"]["off_hand"]["item_id"] == "torch"
+        assert fetched["paperdoll"]["armor"]["item_id"] == "cloth_robe"
+        assert fetched["paperdoll"]["relic"]["item_id"] == "ancient_amulet"
+
+        # Validate all 10 action slots
+        assert len(fetched["action_bar"]) == 10
+        for i in range(10):
+            assert fetched["action_bar"][i]["slot_index"] == i
+            assert fetched["action_bar"][i]["item_id"] == f"spell_slot_{i}"
+
+        # Validate all 6 backpack slots
+        assert len(fetched["backpack"]) == 6
+        for i in range(6):
+            assert fetched["backpack"][i]["slot_index"] == i
+            assert fetched["backpack"][i]["item_id"] == f"item_bp_{i}"
 
 
 @pytest.mark.asyncio
@@ -232,7 +242,7 @@ async def test_dungeon_sync():
                 "hp": 75,
                 "max_hp": 90,
                 "mana": 45,
-                "max_mana": 60,
+                "max_mana": 80,
                 "current_floor": 1,
                 "position": {"x": 37, "y": 37},
             },
@@ -251,6 +261,7 @@ async def test_dungeon_sync():
         assert char_res.status_code == 200
         char_data = char_res.json()
         assert char_data["hp"] == 75
+        assert char_data["mana"] == 45
         assert char_data["position"] == {"x": 37, "y": 37}
 
 
@@ -292,32 +303,36 @@ async def test_get_multiple_dungeon_floors_and_boss_floor_20():
 async def test_character_level_and_xp_persistence():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        await client.get("/api/characters/magician")
+        await client.get("/api/characters/fighter")
 
         save_payload = {
-            "id": "magician",
-            "vocation": "magician",
-            "hp": 76,
-            "max_hp": 76,
-            "mana": 152,
-            "max_mana": 152,
+            "id": "fighter",
+            "vocation": "fighter",
+            "hp": 165,
+            "max_hp": 165,
+            "mana": 35,
+            "max_mana": 35,
             "level": 3,
             "xp": 140,
             "xp_to_next_level": 300,
             "current_floor": 2,
             "position": {"x": 2, "y": 2},
             "paperdoll": {},
+            "action_bar": [],
             "backpack": [],
         }
 
         save_res = await client.post("/api/character/save", json=save_payload)
         assert save_res.status_code == 200
 
-        fetch_res = await client.get("/api/characters/magician")
+        fetch_res = await client.get("/api/characters/fighter")
         assert fetch_res.status_code == 200
         fetched = fetch_res.json()
         assert fetched["level"] == 3
         assert fetched["xp"] == 140
         assert fetched["xp_to_next_level"] == 300
         assert fetched["current_floor"] == 2
-
+        assert fetched["hp"] == 165
+        assert fetched["max_hp"] == 165
+        assert fetched["mana"] == 35
+        assert fetched["max_mana"] == 35
