@@ -1,56 +1,53 @@
-# Feature Brief: Dungeon Environment and Grid Exploration
+# Feature Brief: 01 — Dungeon Environment and Grid Exploration
 
-- **Feature ID:** `01-dungeon-environment-and-grid-exploration`
-- **Related Capability:** `features/01-dungeon-environment-and-grid-exploration.md`
+## Purpose
 
-## 1. Purpose
+Provides the core subterranean 2D dungeon environment and grid-locked spatial exploration mechanics, delivering tactile classic RPG movement, collision detection, and frictionless ground interaction.
 
-Provides a browser-native 2D tile-based subterranean dungeon floor with discrete grid-locked movement, collision detection, and spatial navigation across a single-floor crypt.
+## Expected Behavior
 
-## 2. Expected Behavior
+1. **Dungeon Grid Layout:** The player explores a 40×40 subterranean crypt floor constructed of walkable flagstone tiles, impassable stone walls, a designated entry spawn tile, and an illuminated exit stairway tile.
+2. **Discrete Spatial Navigation:** The player navigates using standard 4-directional inputs (WASD or Arrow keys). Movement is strictly locked to discrete `(x, y)` grid coordinates on a 32×32 pixel unit grid.
+3. **Collision & Boundary Enforcement:** Movement into impassable wall tiles or boundaries is blocked immediately without jitter, diagonal clipping, or analog inertia.
+4. **Frictionless Ground Interaction:**
+   - **Walkover Auto-Loot:** When the player steps onto any floor tile containing ground items (`tile.items`), the system automatically picks up the items into the player's lowest available Action Slot (1–10) or Backpack slot (1–6).
+   - **Direct Pointer Interaction:** Players can left-click directly on visible viewport tiles or ground item stacks to interact, inspect, or pick up items without standing directly on them if in adjacent range.
+   - **Removal of Legacy Keys:** No legacy `[E]` (pickup) or `[U]` (use) keypresses are required.
+5. **Dungeon Exit Activation:** Navigating onto the illuminated exit stairway triggers the floor completion sequence and initiates state persistence.
 
-1. **Dungeon Floor Initialization:**
-   - The game initializes a 40×40 tile grid representing a subterranean crypt floor.
-   - The map consists of impassable stone wall tiles, walkable flagstone floor tiles, a designated starting entrance tile, and an illuminated exit stairway tile.
-   - The player character is positioned at the predefined starting entrance coordinates `(x_start, y_start)`.
+## Inputs / Outputs
 
-2. **Discrete Grid-Locked Navigation:**
-   - The player navigates through the dungeon using cardinal directional keys: **W, A, S, D** or **Arrow Keys** (Up, Down, Left, Right).
-   - Each movement command moves the player character exactly one tile (32×32 pixels) in the chosen direction on the client-side tick.
-   - Movement is strictly grid-locked and discrete: there are no continuous analog physics, diagonal slides, or isometric diamond offsets.
+- **Inputs:**
+  - `W` / `Up Arrow`: Move North.
+  - `S` / `Down Arrow`: Move South.
+  - `A` / `Left Arrow`: Move West.
+  - `D` / `Right Arrow`: Move East.
+  - Mouse Left-Click: Direct pointer interaction with floor tiles and item stacks.
+- **Outputs:**
+  - Updated player grid coordinates `(x, y)`.
+  - Transferred floor items from `tile.items` stack to inventory slots.
+  - Combat and exploration event messages logged to the HUD message panel.
+  - Stage completion event when stepping onto the exit stairway.
 
-3. **Collision Detection:**
-   - When a movement command targets a solid stone wall tile or impassable boundary, movement is blocked immediately and the player remains in their current tile.
-   - Movement into walkable floor tiles, ground items, or exit tiles succeeds without impedance.
+## User-Visible Behavior
 
-4. **Exit Stairway Interaction:**
-   - Stepping directly onto the illuminated exit stairway tile triggers the floor completion event and signals session progression.
+- The dungeon renders in an oblique top-down pixel perspective (flat floor flagstones, upright stone walls and props) rendered at 32×32 pixels per tile.
+- The player character sprite steps crisply between grid cells upon key press.
+- Floor items on the ground render visibly on the tile; walking across them causes them to vanish from the ground and instantly appear in the player's action bar or backpack with a log message.
+- Reaching the glowing exit stairway presents a clear visual indicator of floor completion.
 
-## 3. Inputs / Outputs
+## Constraints
 
-- **User Inputs:** Directional navigation keys (`W`, `A`, `S`, `D`, `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`).
-- **System Outputs:**
-  - Updated player spatial grid coordinates `(x, y)`.
-  - Updated rendering viewport centered on the player character.
-  - Spatial trigger events sent to the lighting engine, enemy aggro evaluator, and floor interaction system.
+- Grid dimensions are strictly 40×40 tiles.
+- Movement is restricted to cardinal directions (North, South, East, West); no diagonal wall-skimming or smooth analog physics.
+- Stone walls and closed obstacle boundaries are completely impassable.
+- Walkover collection must not halt or interrupt continuous movement pacing.
 
-## 4. User-Visible Behavior
+## Basic Acceptance Expectations
 
-- The game renders an oblique top-down perspective on a crisp 32×32 pixel grid.
-- Flat stone floor flagstones form the corridors and rooms, bordered by upright stone walls.
-- The player character sprite turns to face the moved direction and shifts cleanly across tiles.
-- The entrance tile marks the starting location, while the exit stairway tile is visually distinct and illuminated.
-
-## 5. Constraints
-
-- **Map Dimensions:** Exactly 40×40 tiles.
-- **Tile Scale:** Rigid 32×32 pixels per tile.
-- **Movement Model:** 4-directional cardinal movement (Up, Down, Left, Right); no diagonal traversal.
-- **Boundaries:** Solid walls strictly prevent character traversal.
-
-## 6. Basic Acceptance Expectations
-
-1. The player character spawns at the correct entrance tile on the 40×40 subterranean crypt map.
-2. Pressing each directional key (WASD/Arrows) moves the player exactly one tile in that direction into walkable spaces.
-3. Walking into stone walls prevents movement and keeps the character on the current valid tile.
-4. Stepping onto the exit stairway tile successfully triggers floor completion.
+1. Player character spawns at the designated entry coordinates `(x, y)`.
+2. Pressing WASD / Arrow keys moves the character exactly one tile per step in the chosen cardinal direction.
+3. Attempting to walk into a wall tile prevents movement.
+4. Walking over an item placed on the ground adds it to the player's action bar or backpack and clears it from the floor.
+5. Clicking an adjacent ground item collects or interacts with it.
+6. Stepping onto the illuminated exit stairway triggers the floor clear notification.

@@ -1,38 +1,45 @@
 # Summary: Feature Brief Writer (Stage 03)
 
-- **Date:** 2026-09-08
-- **Author / Executor:** Feature Brief Writer Agent
+- **Date:** 2026-09-10
+- **Author / Executor:** Antigravity Agent
 - **Instruction file:** `instructions/build/03-write-feature-briefs.md`
-- **Commit:** `stage 03: write feature briefs for vertical slice`
+- **Commit:** `stage 03: write feature briefs for 10 action slots, fate grants, and 4 vocations`
 
 ## Work Completed
 
-Translated the 7 decomposed feature capabilities into detailed, behavioral, and unambiguous feature briefs in `features/briefs/`. Transcribed all authoritative seed mechanics, exact dimensions (40×40 crypt floor, 32×32 pixel tiles), class specifications (Magician vs. Archer), spell parameters (30s Light aura, 4-tile piercing Energy Beam, physical arrow ammunition consumption), enemy profiles (1.5s Skeleton melee cadence, 3–4 tile Cultist standoff), inventory rules (6-slot backpack + 3 paperdoll slots, tactile floor stacks), desktop UI framing, and decoupled REST state synchronization.
+Authored 9 comprehensive, behavioral feature briefs corresponding directly to `features/01-*.md` through `features/09-*.md`. Each brief explicitly details Purpose, Expected Behavior, Inputs/Outputs, User-Visible Behavior, Constraints, and Basic Acceptance Expectations, incorporating all human-ratified design decisions.
 
 ## Outputs Produced
 
 - `features/briefs/01-dungeon-environment-and-grid-exploration.md`
 - `features/briefs/02-dynamic-lighting-and-line-of-sight.md`
-- `features/briefs/03-playable-vocations-and-combat-abilities.md`
-- `features/briefs/04-enemy-archetypes-and-tactical-ai.md`
-- `features/briefs/05-inventory-equipment-and-ground-interaction.md`
-- `features/briefs/06-modular-desktop-interface.md`
-- `features/briefs/07-state-persistence-and-session.md`
+- `features/briefs/03-playable-vocations-and-combat-archetypes.md`
+- `features/briefs/04-modular-action-slots-and-multi-modal-activation.md`
+- `features/briefs/05-fate-grant-and-level-progression.md`
+- `features/briefs/06-enemy-archetypes-and-tactical-ai.md`
+- `features/briefs/07-inventory-equipment-and-tactile-ground-stacks.md`
+- `features/briefs/08-modular-desktop-interface.md`
+- `features/briefs/09-state-persistence-and-session-management.md`
+- `summaries/03-write-feature-briefs.md`
 
-## Key Decisions
+## Key Decisions & Behavioral Specifications
 
-- **Verbatim Rule Preservation**: Preserved all explicit numeric constraints and mechanics from `concept.md` and `features/*.md` directly within the briefs (e.g. 40×40 floor, 30s Light aura, 4-tile piercing Energy Beam, 1.5s skeleton attack interval, 6-slot backpack, 3-slot paperdoll).
-- **Approved Baseline Parameters**: Ratified baseline defaults approved by the pipeline manager for minor underspecified metrics:
-  - Base unlit sight: 1-tile adjacent radius.
-  - Equipped torch light radius: 5 tiles.
-  - Magician Light spell radius: 7 tiles (30s duration).
-  - Ambient sconces/exit stairs light radius: 3 tiles.
-  - Shadow Cultist attack interval: 2.0s when within 3–4 tile standoff with line-of-sight.
-  - Autopersistence sync triggers: on ground loot pickup and on reaching the illuminated exit stairway.
+- **4 Playable Vocations:** Magician (fragile, high mana, wand spark, light aura, piercing energy beam), Archer (balanced, bow line-of-sight, arrow ammo, power shot), Fighter (high health/armor, sword cleaves), Paladin (hybrid durability/mana, warhammer strikes, healing prayers, holy protection).
+- **10 Modular Action Slots (Keys 1–0):** Multi-modal activation timings established:
+  - *Tap:* Release `< 250ms` (standard primary attack/cast/use).
+  - *Hold / Charge:* Held `≥ 250ms` (visual charge gauge, discharge on key release).
+  - *Double-Tap:* Second press `< 300ms` after first release (secondary/burst combo technique).
+- **Zero-Inventory & Fate Grant Leveling:**
+  - Characters spawn with empty action slots, backpack, and paperdoll.
+  - Level 1 triggers a curated 5-card draft guaranteeing starter vocation tools; player picks 1–2 options.
+  - Every level-up triggers an upgraded 5-card draft (select 1–2).
+  - Drafted items auto-populate lowest empty Action Slot (1–10), then 6-slot Backpack, spilling to floor if completely full.
+- **Frictionless Floor Interaction:** Walkover auto-collects ground stacks into empty action/backpack slots; direct pointer click interaction on tiles/items; legacy `[E]` and `[U]` keys removed.
+- **Dynamic Lighting & Monsters:** Crypt Skeleton (melee A* chase on illumination) and Shadow Cultist (3–4 tile standoff ranged caster).
 
 ## Open Questions & Concerns
 
-None. All feature briefs are behavioral, unambiguous, and ready for Stage 4 System Engineering and Stage 5 Architecture design.
+None. All behavioral specifications, timing thresholds, card draft mechanics, and input modalities have been resolved and documented unambiguously for downstream System Engineering (Stage 04) and Architecture (Stage 05).
 
 ## Status
 

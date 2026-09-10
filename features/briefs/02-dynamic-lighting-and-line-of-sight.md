@@ -1,62 +1,49 @@
-# Feature Brief: Dynamic Lighting and Line of Sight
+# Feature Brief: 02 — Dynamic Lighting and Line-of-Sight
 
-- **Feature ID:** `02-dynamic-lighting-and-line-of-sight`
-- **Related Capability:** `features/02-dynamic-lighting-and-line-of-sight.md`
+## Purpose
 
-## 1. Purpose
+Provides a real-time dynamic illumination and line-of-sight visibility masking system that simulates subterranean darkness, fog-of-war concealment, and atmospheric light propagation.
 
-Simulates subterranean pitch darkness, raycasted line-of-sight (LOS) occlusion, and dynamic light emission sources to reveal terrain, monsters, and floor items within an atmospheric fog-of-war overlay.
+## Expected Behavior
 
-## 2. Expected Behavior
+1. **Ambient Pitch Darkness:** Unlit dungeon tiles exist in complete darkness by default. Tiles outside of active light sources are hidden beneath a darkness mask, concealing walls, floors, floor items, and monsters.
+2. **Raycasted Field-of-View Calculation:** The visibility engine calculates unobstructed line-of-sight rays from each active light source to surrounding tiles in real time, respecting opaque stone walls that block light propagation.
+3. **Dynamic Light Sources:**
+   - **Player Baseline / Equipped Torch:** A player holding an active light source (such as an equipped Wooden Torch in an off-hand/equipment slot or active action slot) illuminates a circular area around the player (e.g., radius of 5 to 6 tiles).
+   - **Environment Emitters:** Stationary light sources (such as glowing wall sconces, mystical crypt runes, and the illuminated exit stairway) cast localized static light circles.
+   - **Spell Illumination:** Activated class spells (e.g., Magician's *Light* aura spell) temporarily expand the player's illuminated radius (e.g., +3 tile radius for a 30-second duration).
+4. **Entity & Hazard Concealment:** Monsters and floor items located in unlit or line-of-sight occluded tiles are completely invisible to the player until illuminated.
+5. **Real-Time Light Updates:** As the player steps between tiles or light source durations expire, illuminated areas and entity visibilities update instantly.
 
-1. **Subterranean Pitch Darkness Baseline:**
-   - Dungeon chambers are naturally engulfed in total pitch darkness.
-   - Any tile outside active illumination and line-of-sight is fully masked by a black fog-of-war layer.
-   - Unlit terrain hazards, items, and lurking monsters remain hidden from view until brought within an illuminated radius.
-   - In unlit conditions without equipment, the player has a minimal baseline visibility of 1 tile immediately adjacent in all cardinal/diagonal directions.
+## Inputs / Outputs
 
-2. **Dynamic Light Sources & Radii:**
-   - **Equipped Wooden Torch:** When equipped in an equipment slot (Left Hand), emits a warm circular illumination with a radius of **5 tiles** centered on the player.
-   - **Magician Light Spell Aura:** When cast, expands the player's active illumination aura to a **7-tile radius** for **30 seconds**, overriding or extending torchlight.
-   - **Ambient Sconces & Exit Stairway:** Stationary light sources (such as wall sconces and the exit stairway) continuously cast an ambient stationary light radius of **3 tiles** around their fixed coordinates.
+- **Inputs:**
+  - Player position changes `(x, y)`.
+  - Equipped light items (e.g., Wooden Torch).
+  - Illumination spell trigger events (e.g., Magician Light spell cast).
+  - Static light emitter coordinates from the dungeon manifest.
+- **Outputs:**
+  - Dynamic 2D light mask texture/overlay rendered over the dungeon grid.
+  - Visible tile set and entity visibility flags.
+  - Monster aggro eligibility based on illumination radius.
 
-3. **Raycasted Line-of-Sight Occlusion:**
-   - Visibility is computed from the light source center using discrete raycasting across the grid.
-   - Solid stone wall tiles block light rays and occlude line-of-sight.
-   - Tiles, monsters, and items situated behind solid walls remain masked in darkness, preventing "see-through-wall" exploits even if they fall within the Euclidean distance of a light source.
+## User-Visible Behavior
 
-4. **Dynamic Mask Updates:**
-   - The illumination mask dynamically recalculates whenever the player moves, equips/unequips a light source, casts a lighting spell, or when a spell aura timer expires.
+- The viewport displays crisp illuminated circles surrounded by deep, atmospheric darkness.
+- Moving forward reveals newly lit corridors while leaving unexplored or distant chambers shrouded in blackness.
+- Equipping a torch or casting the Magician's *Light* spell visibly expands the illuminated radius, brightening previously hidden enemies and room features.
+- Walls cast realistic shadow occlusions behind them, preventing sight into sealed rooms.
 
-## 3. Inputs / Outputs
+## Constraints
 
-- **System Inputs:**
-  - Player grid coordinates `(x, y)`.
-  - Player equipment state (Torch equipped in Left Hand).
-  - Active spell buff states (Magician Light aura remaining duration).
-  - Stationary ambient emitter coordinates (exit stairway, wall sconces).
-  - Map collision and wall matrix.
-- **System Outputs:**
-  - Dynamic 2D light-mask / alpha overlay rendered on the visual canvas.
-  - Entity visibility status flags (monsters, items, and tiles marked visible or hidden).
+- Opaque stone walls block light rays and line-of-sight completely.
+- Darkness overlay must render seamlessly at 60 FPS without frame drops during player locomotion.
+- Unlit monsters must not render on screen and must not be targetable via direct clicks through the dark mask.
 
-## 4. User-Visible Behavior
+## Basic Acceptance Expectations
 
-- The game canvas renders a dark subterranean atmosphere where the player can clearly see illuminated tiles and edges fading into impenetrable darkness.
-- Walking through corridors smoothly reveals rooms as line-of-sight opens up around wall corners.
-- Equipping a torch immediately expands the visible area; casting the Light spell dramatically brightens a wide room for 30 seconds before gently reverting.
-- Lurking monsters emerge from the dark mask into full view as the player's light radius reaches them.
-
-## 5. Constraints
-
-- **Occlusion Rule:** Solid stone walls strictly block light rays; light cannot leak through closed walls.
-- **Spell Duration:** Magician's Light spell aura lasts exactly 30 seconds before expiring.
-- **Hidden Entities:** Monsters and ground items in pitch darkness must not render sprites on the screen.
-
-## 6. Basic Acceptance Expectations
-
-1. Without a torch or active spell, only the player's immediate 1-tile adjacent radius is visible in unlit areas.
-2. Equipping a Wooden Torch increases the visible light radius to 5 tiles around the player.
-3. Casting the Magician's Light spell increases the light radius to 7 tiles, and automatically reverts after 30 seconds.
-4. Moving near a corner blocks view into adjacent rooms until the player passes the wall edge, confirming raycasted line-of-sight occlusion.
-5. Sconces and the exit stairway remain illuminated with a 3-tile radius regardless of player position.
+1. At dungeon start, only the area immediately illuminated by active light sources (starting sconce / equipped torch) is visible.
+2. Tiles behind opaque stone walls remain dark and occluded even if within distance range.
+3. Walking towards an unlit room progressively brings its floor tiles, walls, and monsters into view.
+4. Casting the Magician's *Light* spell instantly increases the illuminated FOV radius for 30 seconds, reverting to normal upon expiration.
+5. Monsters inside the dark mask are hidden and become visible the moment they enter illuminated tiles.
