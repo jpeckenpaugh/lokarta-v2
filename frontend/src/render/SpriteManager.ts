@@ -134,11 +134,37 @@ export class SpriteManager {
       ctx.lineTo(cx + 8, cy - 4);
       ctx.stroke();
 
-      // Feather fletching
       ctx.fillStyle = '#e9d8a6';
       ctx.fillRect(cx - 8, cy + 5, 4, 4);
+    } else if (item.item_id.includes('warhammer') || item.item_id.includes('hammer')) {
+      // Warhammer
+      ctx.strokeStyle = '#8b5a2b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx - 6, cy + 6);
+      ctx.lineTo(cx + 6, cy - 6);
+      ctx.stroke();
+
+      // Hammer head
+      ctx.fillStyle = '#ffd700';
+      ctx.fillRect(cx + 2, cy - 10, 8, 6);
+    } else if (item.item_id.includes('sword') || item.item_id.includes('blade')) {
+      // Sword
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx - 6, cy + 6);
+      ctx.lineTo(cx + 7, cy - 7);
+      ctx.stroke();
+
+      // Crossguard & hilt
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy + 2);
+      ctx.lineTo(cx - 1, cy + 5);
+      ctx.stroke();
     } else if (item.type === 'weapon') {
-      // Wand or Bow
       if (item.item_id.includes('bow')) {
         ctx.strokeStyle = '#c68b59';
         ctx.lineWidth = 3;
@@ -161,14 +187,26 @@ export class SpriteManager {
         ctx.lineTo(cx + 6, cy - 6);
         ctx.stroke();
 
-        // Glowing crystal tip
         ctx.fillStyle = '#00ffff';
         ctx.beginPath();
         ctx.arc(cx + 6, cy - 6, 4, 0, Math.PI * 2);
         ctx.fill();
       }
+    } else if (item.type === 'armor') {
+      // Armor plate or robe
+      ctx.fillStyle = '#718096';
+      ctx.fillRect(cx - 6, cy - 6, 12, 12);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.strokeRect(cx - 6, cy - 6, 12, 12);
+    } else if (item.type === 'relic') {
+      // Glowing relic amulet
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff00aa';
+      ctx.fillRect(cx - 2, cy - 2, 4, 4);
     } else {
-      // Generic item fallback
       ctx.fillStyle = '#e0a96d';
       ctx.fillRect(cx - 5, cy - 5, 10, 10);
     }
@@ -176,7 +214,7 @@ export class SpriteManager {
     // Stack quantity badge if > 1
     if (item.quantity > 1) {
       ctx.fillStyle = '#000000';
-      ctx.fillRect(screenX + size - 14, screenY + size - 12, 14, 12);
+      ctx.fillRect(screenX + size - 16, screenY + size - 12, 16, 12);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 9px monospace';
       ctx.textAlign = 'right';
@@ -240,7 +278,7 @@ export class SpriteManager {
       ctx.beginPath();
       ctx.arc(cx + wandOffset.x * 12, cy + wandOffset.y * 12, 3, 0, Math.PI * 2);
       ctx.fill();
-    } else {
+    } else if (player.vocation === 'archer') {
       // Archer Tunic (Green/Leather)
       ctx.fillStyle = '#2d6a4f';
       ctx.beginPath();
@@ -280,6 +318,84 @@ export class SpriteManager {
       ctx.beginPath();
       ctx.arc(cx + bowOffset.x * 8, cy + bowOffset.y * 8, 6, 0, Math.PI);
       ctx.stroke();
+    } else if (player.vocation === 'fighter') {
+      // Fighter Heavy Armor (Steel / Crimson)
+      ctx.fillStyle = '#4a5568';
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, cy + 12);
+      ctx.lineTo(cx + 9, cy + 12);
+      ctx.lineTo(cx + 7, cy - 4);
+      ctx.lineTo(cx - 7, cy - 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Red Tabard
+      ctx.fillStyle = '#c53030';
+      ctx.fillRect(cx - 3, cy - 4, 6, 16);
+
+      // Steel Helmet
+      ctx.fillStyle = '#718096';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 6, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Visor slit & eyes
+      ctx.fillStyle = '#1a202c';
+      ctx.fillRect(cx - 4, cy - 7, 8, 2);
+      SpriteManager.drawFacingEyes(ctx, cx, cy - 6, player.facing, '#e2e8f0');
+
+      // Broadsword in hand
+      const swordOffset = SpriteManager.getFacingOffset(player.facing);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx + swordOffset.x * 6, cy + swordOffset.y * 6);
+      ctx.lineTo(cx + swordOffset.x * 14, cy + swordOffset.y * 14);
+      ctx.stroke();
+    } else if (player.vocation === 'paladin') {
+      // Paladin Gilded Armor (Gold / White)
+      ctx.fillStyle = '#f7fafc';
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, cy + 12);
+      ctx.lineTo(cx + 9, cy + 12);
+      ctx.lineTo(cx + 7, cy - 4);
+      ctx.lineTo(cx - 7, cy - 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Golden Cross on chest
+      ctx.fillStyle = '#d69e2e';
+      ctx.fillRect(cx - 2, cy - 2, 4, 10);
+      ctx.fillRect(cx - 5, cy + 1, 10, 3);
+
+      // Gilded Helm
+      ctx.fillStyle = '#ecc94b';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 6, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glowing Golden Halo
+      ctx.strokeStyle = '#f6e05e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 14, 6, 2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Eyes
+      ctx.fillStyle = '#ffdbac';
+      SpriteManager.drawFacingEyes(ctx, cx, cy - 6, player.facing, '#3182ce');
+
+      // Golden Warhammer
+      const hammerOffset = SpriteManager.getFacingOffset(player.facing);
+      ctx.strokeStyle = '#b7791f';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx + hammerOffset.x * 5, cy + hammerOffset.y * 5);
+      ctx.lineTo(cx + hammerOffset.x * 13, cy + hammerOffset.y * 13);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ecc94b';
+      ctx.fillRect(cx + hammerOffset.x * 12 - 3, cy + hammerOffset.y * 12 - 3, 6, 6);
     }
   }
 

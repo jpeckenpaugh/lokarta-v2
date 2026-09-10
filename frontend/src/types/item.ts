@@ -1,5 +1,6 @@
-export type ItemType = 'weapon' | 'offhand' | 'armor' | 'consumable' | 'ammo';
-export type LocationType = 'paperdoll' | 'backpack';
+export type ItemType = 'weapon' | 'offhand' | 'armor' | 'relic' | 'spell' | 'consumable' | 'ammo' | 'tool';
+export type LocationType = 'action_bar' | 'backpack' | 'paperdoll';
+export type PaperdollSlotType = 'main_hand' | 'off_hand' | 'armor' | 'relic';
 
 export interface Item {
   item_id: string;
@@ -7,15 +8,26 @@ export interface Item {
   type: ItemType;
   quantity: number;
   stat_bonus: number;
+  description?: string;
+  manaCost?: number;
+  cooldown?: number;
+  hotkey?: string;
+  icon?: string;
 }
 
 export interface PaperdollSlots {
-  right_hand: Item | null;
-  left_hand: Item | null;
+  main_hand: Item | null;
+  off_hand: Item | null;
   armor: Item | null;
+  relic: Item | null;
 }
 
 export interface BackpackSlot {
+  slot_index: number;
+  item: Item | null;
+}
+
+export interface ActionSlot {
   slot_index: number;
   item: Item | null;
 }

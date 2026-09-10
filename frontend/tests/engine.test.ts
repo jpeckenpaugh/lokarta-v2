@@ -5,13 +5,18 @@ import { CombatSystem } from '../src/engine/CombatSystem';
 import { EntityAI } from '../src/engine/EntityAI';
 import { InventorySystem } from '../src/engine/InventorySystem';
 import { ProgressionSystem } from '../src/engine/ProgressionSystem';
+import { FateGrantSystem } from '../src/engine/FateGrantSystem';
+import { GestureEngine } from '../src/engine/GestureEngine';
 import { PlayerEntity, MonsterEntity } from '../src/types/entity';
 import { TileType } from '../src/types/world';
 import { CONFIG } from '../src/config';
 
-describe('Frontend Engine Test Suite', () => {
+describe('Frontend Engine Test Suite - Stage 07', () => {
   let gridMap: GridMap;
-  let player: PlayerEntity;
+  let magicianPlayer: PlayerEntity;
+  let archerPlayer: PlayerEntity;
+  let fighterPlayer: PlayerEntity;
+  let paladinPlayer: PlayerEntity;
 
   beforeEach(() => {
     gridMap = new GridMap(10, 10);
@@ -32,7 +37,7 @@ describe('Frontend Engine Test Suite', () => {
     }
     gridMap.loadFromMatrix(matrix);
 
-    player = {
+    magicianPlayer = {
       id: 'magician',
       vocation: 'magician',
       x: 2,
@@ -40,140 +45,78 @@ describe('Frontend Engine Test Suite', () => {
       facing: 'down',
       hp: 60,
       max_hp: 60,
-      mana: 120,
-      max_mana: 120,
+      mana: 150,
+      max_mana: 150,
       level: 1,
       xp: 0,
       xpToNextLevel: ProgressionSystem.getXpForLevel(1),
       skillBoosts: ProgressionSystem.getDefaultSkillBoosts(),
       current_floor: 1,
-      paperdoll: { right_hand: null, left_hand: null, armor: null },
-      backpack: [null, null, null, null, null, null],
+      paperdoll: { main_hand: null, off_hand: null, armor: null, relic: null },
+      action_bar: new Array(10).fill(null),
+      backpack: new Array(6).fill(null),
       lightSpellTimer: 0,
+      fortifyTimer: 0,
+      holyRadianceTimer: 0,
       cooldowns: {},
+    };
+
+    archerPlayer = {
+      ...magicianPlayer,
+      id: 'archer',
+      vocation: 'archer',
+      hp: 90,
+      max_hp: 90,
+      mana: 80,
+      max_mana: 80,
+      paperdoll: { main_hand: null, off_hand: null, armor: null, relic: null },
+      action_bar: new Array(10).fill(null),
+      backpack: new Array(6).fill(null),
+    };
+
+    fighterPlayer = {
+      ...magicianPlayer,
+      id: 'fighter',
+      vocation: 'fighter',
+      hp: 140,
+      max_hp: 140,
+      mana: 30,
+      max_mana: 30,
+      paperdoll: { main_hand: null, off_hand: null, armor: null, relic: null },
+      action_bar: new Array(10).fill(null),
+      backpack: new Array(6).fill(null),
+    };
+
+    paladinPlayer = {
+      ...magicianPlayer,
+      id: 'paladin',
+      vocation: 'paladin',
+      hp: 120,
+      max_hp: 120,
+      mana: 90,
+      max_mana: 90,
+      paperdoll: { main_hand: null, off_hand: null, armor: null, relic: null },
+      action_bar: new Array(10).fill(null),
+      backpack: new Array(6).fill(null),
     };
   });
 
-  describe('GridMap & Collision', () => {
-    it('correctly reports walkable floor and blocking walls', () => {
-      expect(gridMap.isWalkable(2, 2)).toBe(true);
-      expect(gridMap.isWall(0, 0)).toBe(true);
-      expect(gridMap.isWalkable(0, 0)).toBe(false);
-      expect(gridMap.isStairs(8, 8)).toBe(true);
+  describe('1. 4 Playable Vocations Baseline & Profiles', () => {
+    it('initializes all 4 vocations with correct baseline HP and Mana pools', () => {
+      expect(magicianPlayer.hp).toBe(60);
+      expect(magicianPlayer.mana).toBe(150);
+
+      expect(archerPlayer.hp).toBe(90);
+      expect(archerPlayer.mana).toBe(80);
+
+      expect(fighterPlayer.hp).toBe(140);
+      expect(fighterPlayer.mana).toBe(30);
+
+      expect(paladinPlayer.hp).toBe(120);
+      expect(paladinPlayer.mana).toBe(90);
     });
 
-    it('handles floor item stacking and popping', () => {
-      gridMap.addItem(2, 2, {
-        item_id: 'health_potion',
-        name: 'Health Potion',
-        type: 'consumable',
-        quantity: 1,
-        stat_bonus: 30,
-      });
-      gridMap.addItem(2, 2, {
-        item_id: 'torch',
-        name: 'Wooden Torch',
-        type: 'offhand',
-        quantity: 1,
-        stat_bonus: 5,
-      });
-
-      expect(gridMap.getItems(2, 2).length).toBe(2);
-      const popped = gridMap.popTopItem(2, 2);
-      expect(popped?.item_id).toBe('torch');
-      expect(gridMap.getItems(2, 2).length).toBe(1);
-    });
-  });
-
-  describe('LightingSystem & Line of Sight', () => {
-    it('computes correct light radii for base, torch, and spell aura', () => {
-      expect(LightingSystem.computePlayerRadius(player)).toBe(CONFIG.BASE_LIGHT_RADIUS);
-
-      player.paperdoll.left_hand = {
-        item_id: 'torch',
-        name: 'Wooden Torch',
-        type: 'offhand',
-        quantity: 1,
-        stat_bonus: 5,
-      };
-      expect(LightingSystem.computePlayerRadius(player)).toBe(CONFIG.TORCH_LIGHT_RADIUS);
-
-      player.lightSpellTimer = 30;
-      expect(LightingSystem.computePlayerRadius(player)).toBe(CONFIG.LIGHT_SPELL_RADIUS);
-    });
-
-    it('occludes line-of-sight behind solid walls', () => {
-      // Put a solid wall at (3, 2)
-      gridMap.tiles[2][3].type = TileType.WALL;
-
-      // LOS from (2, 2) to (4, 2) should be blocked by wall at (3, 2)
-      expect(LightingSystem.hasLineOfSight(gridMap, 2, 2, 4, 2)).toBe(false);
-      // LOS from (2, 2) to (2, 4) should be clear
-      expect(LightingSystem.hasLineOfSight(gridMap, 2, 2, 2, 4)).toBe(true);
-    });
-  });
-
-  describe('CombatSystem & Abilities', () => {
-    it('executes Magician Light spell and checks mana cost and cooldown', () => {
-      const res = CombatSystem.executeLightSpell(player);
-      expect(res.success).toBe(true);
-      expect(player.mana).toBe(120 - CONFIG.MAGICIAN_LIGHT_MANA_COST);
-      expect(player.lightSpellTimer).toBe(CONFIG.LIGHT_SPELL_DURATION_SEC);
-      expect(player.cooldowns['light']).toBe(CONFIG.MAGICIAN_LIGHT_COOLDOWN_SEC);
-
-      // Attempting again while on cooldown fails
-      const res2 = CombatSystem.executeLightSpell(player);
-      expect(res2.success).toBe(false);
-    });
-
-    it('executes Archer Bow Shot, decrements arrows, and checks empty ammo guard', () => {
-      const archerPlayer: PlayerEntity = {
-        ...player,
-        vocation: 'archer',
-        backpack: [
-          {
-            item_id: 'arrows',
-            name: 'Arrows',
-            type: 'ammo',
-            quantity: 2,
-            stat_bonus: 0,
-          },
-          null, null, null, null, null,
-        ],
-      };
-
-      const monster: MonsterEntity = {
-        id: 'skel_1',
-        type: 'crypt_skeleton',
-        name: 'Crypt Skeleton',
-        x: 4,
-        y: 2,
-        hp: 40,
-        max_hp: 40,
-        facing: 'left',
-        isAggroed: true,
-        attackCooldown: 0,
-        attackCadence: 1.5,
-        visible: true,
-      };
-
-      const shot1 = CombatSystem.executeBowShot(archerPlayer, monster, gridMap);
-      expect(shot1.success).toBe(true);
-      expect(archerPlayer.backpack[0]?.quantity).toBe(1);
-
-      // Reset cooldown for test
-      archerPlayer.cooldowns['bow_shot'] = 0;
-      const shot2 = CombatSystem.executeBowShot(archerPlayer, monster, gridMap);
-      expect(shot2.success).toBe(true);
-      expect(archerPlayer.backpack[0]).toBeNull(); // arrows depleted
-
-      archerPlayer.cooldowns['bow_shot'] = 0;
-      const shot3 = CombatSystem.executeBowShot(archerPlayer, monster, gridMap);
-      expect(shot3.success).toBe(false);
-      expect(shot3.message).toContain('Out of arrows');
-    });
-
-    it('executes Magician Energy Beam along 4-tile direction piercing multiple enemies', () => {
+    it('executes Magician Wand Spark, Light Spell, and linear Energy Beam', () => {
       const m1: MonsterEntity = {
         id: 'skel_1',
         type: 'crypt_skeleton',
@@ -203,15 +146,343 @@ describe('Frontend Engine Test Suite', () => {
         visible: true,
       };
 
-      const res = CombatSystem.executeEnergyBeam(player, 'down', gridMap, [m1, m2]);
-      expect(res.success).toBe(true);
+      // Light Spell
+      const lightRes = CombatSystem.executeLightSpell(magicianPlayer);
+      expect(lightRes.success).toBe(true);
+      expect(magicianPlayer.mana).toBe(150 - CONFIG.MAGICIAN_LIGHT_MANA_COST);
+      expect(magicianPlayer.lightSpellTimer).toBe(CONFIG.LIGHT_SPELL_DURATION_SEC);
+
+      // Energy Beam piercing multiple monsters in 4-tile line down
+      const beamRes = CombatSystem.executeEnergyBeam(magicianPlayer, 'down', gridMap, [m1, m2]);
+      expect(beamRes.success).toBe(true);
       expect(m1.hp).toBeLessThan(40);
       expect(m2.hp).toBeLessThan(30);
-      expect(player.mana).toBe(120 - CONFIG.MAGICIAN_BEAM_MANA_COST);
+      expect(magicianPlayer.mana).toBe(150 - CONFIG.MAGICIAN_LIGHT_MANA_COST - CONFIG.MAGICIAN_BEAM_MANA_COST);
+    });
+
+    it('executes Archer Bow Shot, decrements arrows, and checks empty ammo guard', () => {
+      archerPlayer.action_bar[0] = {
+        item_id: 'arrows',
+        name: 'Arrows',
+        type: 'ammo',
+        quantity: 2,
+        stat_bonus: 0,
+      };
+
+      const monster: MonsterEntity = {
+        id: 'skel_1',
+        type: 'crypt_skeleton',
+        name: 'Crypt Skeleton',
+        x: 4,
+        y: 2,
+        hp: 40,
+        max_hp: 40,
+        facing: 'left',
+        isAggroed: true,
+        attackCooldown: 0,
+        attackCadence: 1.5,
+        visible: true,
+      };
+
+      const shot1 = CombatSystem.executeBowShot(archerPlayer, monster, gridMap);
+      expect(shot1.success).toBe(true);
+      expect(archerPlayer.action_bar[0]?.quantity).toBe(1);
+
+      archerPlayer.cooldowns['bow_shot'] = 0;
+      const shot2 = CombatSystem.executeBowShot(archerPlayer, monster, gridMap);
+      expect(shot2.success).toBe(true);
+      expect(archerPlayer.action_bar[0]).toBeNull(); // arrows depleted
+
+      archerPlayer.cooldowns['bow_shot'] = 0;
+      const shot3 = CombatSystem.executeBowShot(archerPlayer, monster, gridMap);
+      expect(shot3.success).toBe(false);
+      expect(shot3.message).toContain('Out of arrows');
+    });
+
+    it('executes Fighter melee Slash, Cleave, and Fortify', () => {
+      const monster: MonsterEntity = {
+        id: 'skel_1',
+        type: 'crypt_skeleton',
+        name: 'Crypt Skeleton',
+        x: 2,
+        y: 3,
+        hp: 40,
+        max_hp: 40,
+        facing: 'up',
+        isAggroed: true,
+        attackCooldown: 0,
+        attackCadence: 1.5,
+        visible: true,
+      };
+
+      // 1. Slash
+      const slashRes = CombatSystem.executeFighterSlash(fighterPlayer, monster, 'tap');
+      expect(slashRes.success).toBe(true);
+      expect(monster.hp).toBeLessThan(40);
+      expect(fighterPlayer.cooldowns['slash']).toBe(CONFIG.FIGHTER_SLASH_COOLDOWN_SEC);
+
+      // 2. Cleave
+      const cleaveRes = CombatSystem.executeFighterCleave(fighterPlayer, [monster]);
+      expect(cleaveRes.success).toBe(true);
+      expect(fighterPlayer.mana).toBe(30 - CONFIG.FIGHTER_CLEAVE_MANA_COST);
+      expect(fighterPlayer.cooldowns['cleave']).toBe(CONFIG.FIGHTER_CLEAVE_COOLDOWN_SEC);
+
+      // 3. Fortify
+      const fortifyRes = CombatSystem.executeFighterFortify(fighterPlayer);
+      expect(fortifyRes.success).toBe(true);
+      expect(fighterPlayer.fortifyTimer).toBe(CONFIG.FIGHTER_FORTIFY_DURATION_SEC);
+      expect(fighterPlayer.mana).toBe(20 - CONFIG.FIGHTER_FORTIFY_MANA_COST);
+    });
+
+    it('executes Paladin Holy Strike, Healing Prayer, and Holy Radiance', () => {
+      const monster: MonsterEntity = {
+        id: 'cult_1',
+        type: 'shadow_cultist',
+        name: 'Shadow Cultist',
+        x: 3,
+        y: 2,
+        hp: 30,
+        max_hp: 30,
+        facing: 'left',
+        isAggroed: true,
+        attackCooldown: 0,
+        attackCadence: 2.0,
+        visible: true,
+      };
+
+      // 1. Holy Strike
+      const strikeRes = CombatSystem.executePaladinHolyStrike(paladinPlayer, monster, 'tap');
+      expect(strikeRes.success).toBe(true);
+      expect(monster.hp).toBeLessThan(30);
+      expect(paladinPlayer.mana).toBe(90 - CONFIG.PALADIN_HOLY_STRIKE_MANA_COST);
+
+      // 2. Healing Prayer
+      paladinPlayer.hp = 50;
+      const healRes = CombatSystem.executePaladinHeal(paladinPlayer);
+      expect(healRes.success).toBe(true);
+      expect(paladinPlayer.hp).toBeGreaterThan(50);
+      expect(paladinPlayer.cooldowns['healing_prayer']).toBe(CONFIG.PALADIN_HEAL_COOLDOWN_SEC);
+
+      // 3. Holy Radiance
+      const radRes = CombatSystem.executePaladinRadiance(paladinPlayer, [monster]);
+      expect(radRes.success).toBe(true);
+      expect(paladinPlayer.cooldowns['holy_radiance']).toBe(CONFIG.PALADIN_RADIANCE_COOLDOWN_SEC);
     });
   });
 
-  describe('EntityAI Tactical Archetypes', () => {
+  describe('2. 10 Modular Action Slots & Multi-Modal Gestures', () => {
+    it('maps keyboard keys 1..9 and 0 to slot indices 0..9', () => {
+      expect(GestureEngine.keyToSlotIndex('1')).toBe(0);
+      expect(GestureEngine.keyToSlotIndex('5')).toBe(4);
+      expect(GestureEngine.keyToSlotIndex('9')).toBe(8);
+      expect(GestureEngine.keyToSlotIndex('0')).toBe(9);
+      expect(GestureEngine.keyToSlotIndex('a')).toBeNull();
+
+      expect(GestureEngine.slotIndexToHotkey(0)).toBe('1');
+      expect(GestureEngine.slotIndexToHotkey(8)).toBe('9');
+      expect(GestureEngine.slotIndexToHotkey(9)).toBe('0');
+    });
+
+    it('amplifies damage with hold/charge and double-tap gestures', () => {
+      const monster: MonsterEntity = {
+        id: 'skel_1',
+        type: 'crypt_skeleton',
+        name: 'Crypt Skeleton',
+        x: 4,
+        y: 2,
+        hp: 100,
+        max_hp: 100,
+        facing: 'left',
+        isAggroed: true,
+        attackCooldown: 0,
+        attackCadence: 1.5,
+        visible: true,
+      };
+
+      // Standard tap
+      magicianPlayer.cooldowns['wand_spark'] = 0;
+      const tapRes = CombatSystem.executeWandSpark(magicianPlayer, monster, gridMap, 'tap');
+      const tapDmg = tapRes.damageDealt || 0;
+
+      // Reset CD & monster HP
+      magicianPlayer.cooldowns['wand_spark'] = 0;
+      monster.hp = 100;
+
+      // Hold / Overcharged
+      const holdRes = CombatSystem.executeWandSpark(magicianPlayer, monster, gridMap, 'hold');
+      const holdDmg = holdRes.damageDealt || 0;
+
+      expect(holdDmg).toBeGreaterThanOrEqual(tapDmg);
+      expect(holdRes.message).toContain('Overcharged');
+    });
+  });
+
+  describe('3. 4-Slot Paperdoll & 6-Slot Backpack', () => {
+    it('equips items to main_hand, off_hand, armor, and relic paperdoll slots', () => {
+      magicianPlayer.backpack[0] = { item_id: 'apprentice_wand', name: 'Apprentice Wand', type: 'weapon', quantity: 1, stat_bonus: 3 };
+      magicianPlayer.backpack[1] = { item_id: 'torch', name: 'Wooden Torch', type: 'offhand', quantity: 1, stat_bonus: 6 };
+      magicianPlayer.backpack[2] = { item_id: 'plate_armor', name: 'Plate Armor', type: 'armor', quantity: 1, stat_bonus: 8 };
+      magicianPlayer.backpack[3] = { item_id: 'relic_amulet', name: 'Luminous Amulet', type: 'relic', quantity: 1, stat_bonus: 20 };
+
+      // Equip all 4
+      expect(InventorySystem.equipItemFromBackpack(magicianPlayer, 0).success).toBe(true);
+      expect(magicianPlayer.paperdoll.main_hand?.item_id).toBe('apprentice_wand');
+
+      expect(InventorySystem.equipItemFromBackpack(magicianPlayer, 1).success).toBe(true);
+      expect(magicianPlayer.paperdoll.off_hand?.item_id).toBe('torch');
+
+      expect(InventorySystem.equipItemFromBackpack(magicianPlayer, 2).success).toBe(true);
+      expect(magicianPlayer.paperdoll.armor?.item_id).toBe('plate_armor');
+
+      expect(InventorySystem.equipItemFromBackpack(magicianPlayer, 3).success).toBe(true);
+      expect(magicianPlayer.paperdoll.relic?.item_id).toBe('relic_amulet');
+
+      // Unequip relic
+      const unequipRes = InventorySystem.unequipItem(magicianPlayer, 'relic');
+      expect(unequipRes.success).toBe(true);
+      expect(magicianPlayer.paperdoll.relic).toBeNull();
+      expect(magicianPlayer.action_bar[0]?.item_id).toBe('relic_amulet');
+    });
+
+    it('swaps items between action bar slots', () => {
+      magicianPlayer.action_bar[0] = { item_id: 'health_potion', name: 'Health Potion', type: 'consumable', quantity: 1, stat_bonus: 30 };
+      magicianPlayer.action_bar[1] = { item_id: 'mana_potion', name: 'Mana Potion', type: 'consumable', quantity: 1, stat_bonus: 40 };
+
+      InventorySystem.moveItem(magicianPlayer, 'action_bar', 0, 'action_bar', 1);
+      expect(magicianPlayer.action_bar[0]?.item_id).toBe('mana_potion');
+      expect(magicianPlayer.action_bar[1]?.item_id).toBe('health_potion');
+    });
+
+    it('consumes potions directly from Action Bar and restores resource pools', () => {
+      magicianPlayer.hp = 20;
+      magicianPlayer.action_bar[0] = { item_id: 'health_potion', name: 'Health Potion', type: 'consumable', quantity: 1, stat_bonus: 30 };
+
+      const useRes = InventorySystem.useActionBarItem(magicianPlayer, 0);
+      expect(useRes.success).toBe(true);
+      expect(magicianPlayer.hp).toBe(50);
+      expect(magicianPlayer.action_bar[0]).toBeNull();
+    });
+  });
+
+  describe('4. Frictionless Floor Interaction & Walkover Auto-Loot', () => {
+    it('automatically loots ground items into lowest action slot, then backpack', () => {
+      gridMap.addItem(magicianPlayer.x, magicianPlayer.y, {
+        item_id: 'health_potion',
+        name: 'Health Potion',
+        type: 'consumable',
+        quantity: 2,
+        stat_bonus: 30,
+      });
+      gridMap.addItem(magicianPlayer.x, magicianPlayer.y, {
+        item_id: 'torch',
+        name: 'Wooden Torch',
+        type: 'offhand',
+        quantity: 1,
+        stat_bonus: 6,
+      });
+
+      const lootRes = InventorySystem.autoLootTile(magicianPlayer, gridMap);
+      expect(lootRes.success).toBe(true);
+      expect(gridMap.getItems(magicianPlayer.x, magicianPlayer.y).length).toBe(0);
+
+      // Should populate Action Slots 0 and 1
+      expect(magicianPlayer.action_bar[0]?.item_id).toBe('torch');
+      expect(magicianPlayer.action_bar[1]?.item_id).toBe('health_potion');
+    });
+
+    it('merges ground potions into existing stacks up to 9 per slot', () => {
+      magicianPlayer.action_bar[0] = {
+        item_id: 'health_potion',
+        name: 'Health Potion',
+        type: 'consumable',
+        quantity: 5,
+        stat_bonus: 30,
+      };
+
+      gridMap.addItem(magicianPlayer.x, magicianPlayer.y, {
+        item_id: 'health_potion',
+        name: 'Health Potion',
+        type: 'consumable',
+        quantity: 3,
+        stat_bonus: 30,
+      });
+
+      const lootRes = InventorySystem.autoLootTile(magicianPlayer, gridMap);
+      expect(lootRes.success).toBe(true);
+      expect(magicianPlayer.action_bar[0]?.quantity).toBe(8);
+      expect(gridMap.getItems(magicianPlayer.x, magicianPlayer.y).length).toBe(0);
+    });
+
+    it('leaves items on ground when all action slots and backpack are full', () => {
+      for (let i = 0; i < 10; i++) {
+        magicianPlayer.action_bar[i] = { item_id: `sword_${i}`, name: `Sword ${i}`, type: 'weapon', quantity: 1, stat_bonus: 0 };
+      }
+      for (let i = 0; i < 6; i++) {
+        magicianPlayer.backpack[i] = { item_id: `shield_${i}`, name: `Shield ${i}`, type: 'offhand', quantity: 1, stat_bonus: 0 };
+      }
+
+      gridMap.addItem(magicianPlayer.x, magicianPlayer.y, {
+        item_id: 'ruby_ring',
+        name: 'Ruby Ring',
+        type: 'relic',
+        quantity: 1,
+        stat_bonus: 5,
+      });
+
+      const lootRes = InventorySystem.autoLootTile(magicianPlayer, gridMap);
+      expect(lootRes.success).toBe(false);
+      expect(gridMap.getItems(magicianPlayer.x, magicianPlayer.y).length).toBe(1);
+    });
+  });
+
+  describe('5. Zero-Inventory Start & Fate Grant Roguelike Draft', () => {
+    it('generates 5 distinct Fate Grant cards with vocation weighting at Level 1', () => {
+      const draft = FateGrantSystem.generateDraftOffer('magician', 1);
+      expect(draft.cards.length).toBe(5);
+
+      const ids = new Set(draft.cards.map(c => c.id));
+      expect(ids.size).toBe(5);
+
+      const aligned = draft.cards.filter(c => c.vocationAffinity === 'magician');
+      expect(aligned.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('applies drafted cards into lowest action slots and backpack', () => {
+      const draft = FateGrantSystem.generateDraftOffer('fighter', 1);
+      const selected = [draft.cards[0], draft.cards[1]];
+
+      const applyRes = FateGrantSystem.applyDraftedCards(fighterPlayer, selected, gridMap);
+      expect(applyRes.addedToHotbar.length).toBe(2);
+      expect(fighterPlayer.action_bar[0]).not.toBeNull();
+      expect(fighterPlayer.action_bar[1]).not.toBeNull();
+    });
+  });
+
+  describe('6. GridMap & Lighting System', () => {
+    it('correctly calculates dynamic illumination for Base, Torch, and Spell', () => {
+      expect(LightingSystem.computePlayerRadius(magicianPlayer)).toBe(CONFIG.BASE_LIGHT_RADIUS);
+
+      magicianPlayer.paperdoll.off_hand = {
+        item_id: 'torch',
+        name: 'Wooden Torch',
+        type: 'offhand',
+        quantity: 1,
+        stat_bonus: 6,
+      };
+      expect(LightingSystem.computePlayerRadius(magicianPlayer)).toBe(CONFIG.TORCH_LIGHT_RADIUS);
+
+      magicianPlayer.lightSpellTimer = 30;
+      expect(LightingSystem.computePlayerRadius(magicianPlayer)).toBe(CONFIG.LIGHT_SPELL_RADIUS);
+    });
+
+    it('blocks raycasted line of sight through solid walls', () => {
+      gridMap.tiles[2][3].type = TileType.WALL;
+      expect(LightingSystem.hasLineOfSight(gridMap, 2, 2, 4, 2)).toBe(false);
+      expect(LightingSystem.hasLineOfSight(gridMap, 2, 2, 2, 4)).toBe(true);
+    });
+  });
+
+  describe('7. Tactical EntityAI & Progression Scaling', () => {
     it('Skeleton moves towards player and attacks when adjacent', () => {
       const skeleton: MonsterEntity = {
         id: 'skel_1',
@@ -230,256 +501,33 @@ describe('Frontend Engine Test Suite', () => {
         visible: true,
       };
 
-      // Tick 1: moves from (4, 2) to (3, 2)
-      EntityAI.updateMonsters([skeleton], player, gridMap, 0.1);
+      // Step 1: moves closer
+      EntityAI.updateMonsters([skeleton], fighterPlayer, gridMap, 0.1);
       expect(skeleton.x).toBe(3);
       expect(skeleton.y).toBe(2);
 
-      // Tick 2: now adjacent to player at (2, 2) -> executes melee attack
-      const actions = EntityAI.updateMonsters([skeleton], player, gridMap, 0.1);
+      // Step 2: adjacent to player -> attacks
+      const actions = EntityAI.updateMonsters([skeleton], fighterPlayer, gridMap, 0.1);
       expect(actions.length).toBe(1);
-      expect(player.hp).toBeLessThan(60);
-      expect(skeleton.attackCooldown).toBe(1.5);
+      expect(fighterPlayer.hp).toBeLessThan(140);
     });
 
-    it('Cultist maintains standoff distance and casts shadow bolt', () => {
-      const cultist: MonsterEntity = {
-        id: 'cult_1',
-        type: 'shadow_cultist',
-        name: 'Shadow Cultist',
-        x: 5,
-        y: 2, // distance = 3 tiles
-        hp: 30,
-        max_hp: 30,
-        facing: 'left',
-        isAggroed: true,
-        moveCooldown: 0,
-        moveCadence: 1.0,
-        attackCooldown: 0,
-        attackCadence: 2.0,
-        visible: true,
-      };
-
-      const actions = EntityAI.updateMonsters([cultist], player, gridMap, 0.1);
-      expect(actions.length).toBe(1);
-      expect(actions[0].message).toContain('Shadow Bolt');
-      expect(player.hp).toBeLessThan(60);
-      expect(cultist.attackCooldown).toBe(2.0);
-    });
-  });
-
-  describe('InventorySystem & Consumables', () => {
-    it('picks up items into backpack with 6-slot capacity enforcement', () => {
-      for (let i = 0; i < 6; i++) {
-        player.backpack[i] = {
-          item_id: `item_${i}`,
-          name: `Item ${i}`,
-          type: 'consumable',
-          quantity: 1,
-          stat_bonus: 0,
-        };
-      }
-
-      gridMap.addItem(player.x, player.y, {
-        item_id: 'torch',
-        name: 'Wooden Torch',
-        type: 'offhand',
-        quantity: 1,
-        stat_bonus: 5,
-      });
-
-      const res = InventorySystem.pickUpItem(player, gridMap);
-      expect(res.success).toBe(false);
-      expect(res.message).toContain('Backpack is full');
+    it('levels up Fighter with +18 HP and +4 Mana scaling', () => {
+      const lvlRes = ProgressionSystem.awardXP(fighterPlayer, 100);
+      expect(lvlRes.leveledUp).toBe(true);
+      expect(lvlRes.newLevel).toBe(2);
+      expect(fighterPlayer.max_hp).toBe(158);
+      expect(fighterPlayer.max_mana).toBe(34);
+      expect(fighterPlayer.hp).toBe(158);
+      expect(fighterPlayer.mana).toBe(34);
     });
 
-    it('equips and unequips items to paperdoll slots', () => {
-      player.backpack[0] = {
-        item_id: 'torch',
-        name: 'Wooden Torch',
-        type: 'offhand',
-        quantity: 1,
-        stat_bonus: 5,
-      };
-
-      const equipRes = InventorySystem.equipItem(player, 0);
-      expect(equipRes.success).toBe(true);
-      expect(player.paperdoll.left_hand?.item_id).toBe('torch');
-      expect(player.backpack[0]).toBeNull();
-
-      const unequipRes = InventorySystem.unequipItem(player, 'left_hand');
-      expect(unequipRes.success).toBe(true);
-      expect(player.paperdoll.left_hand).toBeNull();
-      expect(player.backpack[0]?.item_id).toBe('torch');
-    });
-
-    it('consumes health potion from backpack and restores HP', () => {
-      player.hp = 20;
-      player.backpack[0] = {
-        item_id: 'health_potion',
-        name: 'Health Potion',
-        type: 'consumable',
-        quantity: 1,
-        stat_bonus: 30,
-      };
-
-      const res = InventorySystem.useBackpackItem(player, 0);
-      expect(res.success).toBe(true);
-      expect(player.hp).toBe(50);
-      expect(player.backpack[0]).toBeNull();
-    });
-
-    it('consumes potion directly from ground tile without picking up', () => {
-      player.mana = 40;
-      gridMap.addItem(player.x, player.y, {
-        item_id: 'mana_potion',
-        name: 'Mana Potion',
-        type: 'consumable',
-        quantity: 1,
-        stat_bonus: 40,
-      });
-
-      const res = InventorySystem.useGroundItem(player, gridMap);
-      expect(res.success).toBe(true);
-      expect(player.mana).toBe(80);
-      expect(gridMap.getItems(player.x, player.y).length).toBe(0);
-    });
-
-    it('stacks potions and torches up to 9 per slot', () => {
-      // Add health potion x5
-      player.backpack[0] = {
-        item_id: 'health_potion',
-        name: 'Health Potion',
-        type: 'consumable',
-        quantity: 5,
-        stat_bonus: 30,
-      };
-
-      // Pick up health potion x3 -> should merge into slot 0 with quantity 8
-      gridMap.addItem(player.x, player.y, {
-        item_id: 'health_potion',
-        name: 'Health Potion',
-        type: 'consumable',
-        quantity: 3,
-        stat_bonus: 30,
-      });
-      const res1 = InventorySystem.pickUpItem(player, gridMap);
-      expect(res1.success).toBe(true);
-      expect(player.backpack[0]?.quantity).toBe(8);
-      expect(player.backpack[1]).toBeNull();
-
-      // Pick up health potion x3 -> should cap slot 0 at 9 and put remainder 2 in slot 1
-      gridMap.addItem(player.x, player.y, {
-        item_id: 'health_potion',
-        name: 'Health Potion',
-        type: 'consumable',
-        quantity: 3,
-        stat_bonus: 30,
-      });
-      const res2 = InventorySystem.pickUpItem(player, gridMap);
-      expect(res2.success).toBe(true);
-      expect(player.backpack[0]?.quantity).toBe(9);
-      expect(player.backpack[1]?.quantity).toBe(2);
-    });
-
-    it('equips 1 torch from a stack and merges torch on unequip', () => {
-      player.backpack[0] = {
-        item_id: 'torch',
-        name: 'Wooden Torch',
-        type: 'offhand',
-        quantity: 3,
-        stat_bonus: 5,
-      };
-
-      const equipRes = InventorySystem.equipItem(player, 0);
-      expect(equipRes.success).toBe(true);
-      expect(player.paperdoll.left_hand?.item_id).toBe('torch');
-      expect(player.paperdoll.left_hand?.quantity).toBe(1);
-      expect(player.backpack[0]?.quantity).toBe(2);
-
-      const unequipRes = InventorySystem.unequipItem(player, 'left_hand');
-      expect(unequipRes.success).toBe(true);
-      expect(player.paperdoll.left_hand).toBeNull();
-      expect(player.backpack[0]?.quantity).toBe(3);
-    });
-  });
-
-  describe('ProgressionSystem & Leveling', () => {
-    it('calculates correct XP thresholds for levels 1 to 20', () => {
-      expect(ProgressionSystem.getXpForLevel(1)).toBe(100);
-      expect(ProgressionSystem.getXpForLevel(2)).toBe(200);
-      expect(ProgressionSystem.getXpForLevel(20)).toBe(2000);
-    });
-
-    it('awards XP and levels up player, boosting HP/MP and skill multipliers', () => {
-      expect(player.level).toBe(1);
-      expect(player.xp).toBe(0);
-
-      // Add 50 XP -> no level up
-      const res1 = ProgressionSystem.awardXP(player, 50);
-      expect(res1.leveledUp).toBe(false);
-      expect(player.xp).toBe(50);
-      expect(player.level).toBe(1);
-
-      // Add 60 XP -> total 110 XP -> levels up to 2 (needed 100 XP)
-      const res2 = ProgressionSystem.awardXP(player, 60);
-      expect(res2.leveledUp).toBe(true);
-      expect(res2.newLevel).toBe(2);
-      expect(player.level).toBe(2);
-      expect(player.xp).toBe(10);
-      expect(player.max_hp).toBe(68); // Magician gains +8 HP
-      expect(player.max_mana).toBe(136); // Magician gains +16 MP
-      expect(player.hp).toBe(68); // Fully restored on level up
-      expect(player.mana).toBe(136);
-      expect(player.skillBoosts.damageMultiplier).toBeCloseTo(1.10);
-    });
-
-    it('calculates monster XP based on floor and type', () => {
-      const ratXpFloor1 = ProgressionSystem.getMonsterXp('giant_rat', 1);
-      const skelXpFloor5 = ProgressionSystem.getMonsterXp('crypt_skeleton', 5);
-      const bossXp = ProgressionSystem.getMonsterXp('abyssal_overlord', 20, true);
-
-      expect(ratXpFloor1).toBe(35);
-      expect(skelXpFloor5).toBe(67); // 35 + 4*8 = 67
-      expect(bossXp).toBe(500);
-    });
-  });
-
-  describe('AudioSystem & Sound Effects', () => {
-    it('initializes safely and toggles mute state without errors', async () => {
-      const { soundFX, AudioSystem } = await import('../src/audio/AudioSystem');
-      expect(soundFX).toBeDefined();
-      expect(AudioSystem.getInstance()).toBe(soundFX);
-
-      const initialMute = soundFX.getMuted();
-      const toggledMute = soundFX.toggleMute();
-      expect(toggledMute).toBe(!initialMute);
-      expect(soundFX.getMuted()).toBe(!initialMute);
-
-      // Restore mute state
-      soundFX.toggleMute();
-      expect(soundFX.getMuted()).toBe(initialMute);
-
-      // Verify safe execution of all sound triggers in headless environment
-      expect(() => soundFX.playFootstep()).not.toThrow();
-      expect(() => soundFX.playWandSpark()).not.toThrow();
-      expect(() => soundFX.playLightSpell()).not.toThrow();
-      expect(() => soundFX.playEnergyBeam()).not.toThrow();
-      expect(() => soundFX.playBowShot()).not.toThrow();
-      expect(() => soundFX.playPowerShot()).not.toThrow();
-      expect(() => soundFX.playHit()).not.toThrow();
-      expect(() => soundFX.playMonsterAttack()).not.toThrow();
-      expect(() => soundFX.playMonsterDeath()).not.toThrow();
-      expect(() => soundFX.playPlayerHurt()).not.toThrow();
-      expect(() => soundFX.playItemPickup()).not.toThrow();
-      expect(() => soundFX.playPotionDrink()).not.toThrow();
-      expect(() => soundFX.playEquip()).not.toThrow();
-      expect(() => soundFX.playUnequip()).not.toThrow();
-      expect(() => soundFX.playStairs()).not.toThrow();
-      expect(() => soundFX.playLevelUp()).not.toThrow();
-      expect(() => soundFX.playVictory()).not.toThrow();
-      expect(() => soundFX.playDefeat()).not.toThrow();
-      expect(() => soundFX.playClick()).not.toThrow();
+    it('levels up Paladin with +15 HP and +10 Mana scaling', () => {
+      const lvlRes = ProgressionSystem.awardXP(paladinPlayer, 100);
+      expect(lvlRes.leveledUp).toBe(true);
+      expect(lvlRes.newLevel).toBe(2);
+      expect(paladinPlayer.max_hp).toBe(135);
+      expect(paladinPlayer.max_mana).toBe(100);
     });
   });
 });

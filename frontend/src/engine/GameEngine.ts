@@ -1,15 +1,19 @@
 import { GridMap } from './GridMap';
 import { LightingSystem } from './LightingSystem';
-import { CombatSystem } from './CombatSystem';
+import { CombatSystem, CombatResult } from './CombatSystem';
 import { EntityAI } from './EntityAI';
 import { InventorySystem } from './InventorySystem';
 import { SyncManager } from './SyncManager';
+import { ProgressionSystem } from './ProgressionSystem';
+import { GestureEngine } from './GestureEngine';
+import { FateGrantSystem } from './FateGrantSystem';
 import { CanvasRenderer } from '../render/CanvasRenderer';
 import { PaperdollUI } from '../ui/PaperdollUI';
 import { BackpackUI } from '../ui/BackpackUI';
 import { StatusBarsUI } from '../ui/StatusBarsUI';
 import { HotbarUI } from '../ui/HotbarUI';
 import { CombatLogUI } from '../ui/CombatLogUI';
+import { FateGrantModal } from '../ui/FateGrantModal';
 import {
   PlayerEntity,
   MonsterEntity,
@@ -18,11 +22,12 @@ import {
   Direction,
 } from '../types/entity';
 import { LightEmitter } from '../types/world';
-import { PaperdollSlots } from '../types/item';
+import { PaperdollSlotType } from '../types/item';
+import { GestureEvent, GestureType } from '../types/action';
+import { FateCard } from '../types/fate';
 import { VocationType, CharacterResponse, DungeonFloorResponse } from '../types/api';
 import { CONFIG } from '../config';
 import { soundFX } from '../audio/AudioSystem';
-import { ProgressionSystem } from './ProgressionSystem';
 
 export class GameEngine {
   public gridMap: GridMap;
@@ -36,6 +41,7 @@ export class GameEngine {
   public isRunning = false;
   public isFloorCleared = false;
   public isGameOver = false;
+  public isDrafting = false;
   public currentFloorName = 'Subterranean Crypt';
 
   private tickTimer: number | null = null;
@@ -49,6 +55,8 @@ export class GameEngine {
   private statusBarsUI: StatusBarsUI;
   private hotbarUI: HotbarUI;
   private combatLogUI: CombatLogUI;
+  private fateGrantModal: FateGrantModal;
+  private gestureEngine: GestureEngine;
 
   // Key state tracking for movement (discrete 10 Hz steps)
   private keysDown = new Set<string>();
@@ -62,7 +70,8 @@ export class GameEngine {
     backpackContainerId: string,
     statusBarsContainerId: string,
     hotbarContainerId: string,
-    combatLogContainerId: string
+    combatLogContainerId: string,
+    modalOverlayId = 'modal-overlay'
   ) {
     this.gridMap = new GridMap();
     this.player = this.createDefaultPlayer('magician');
@@ -84,33 +93,59 @@ export class GameEngine {
 
     this.hotbarUI = new HotbarUI(
       hotbarContainerId,
-      abilityId => this.handleTriggerAbility(abilityId),
-      () => this.handlePickUp(),
-      () => this.handleUseGround()
+      slotIdx => this.gestureEngine.handleInputDown(slotIdx),
+      slotIdx => this.gestureEngine.handleInputUp(slotIdx),
+      (fromSlot, toSlot) => this.handleSwapActionSlots(fromSlot, toSlot)
+    );
+
+    this.fateGrantModal = new FateGrantModal(modalOverlayId, selectedCards => {
+      this.handleDraftConfirmed(selectedCards);
+    });
+
+    this.gestureEngine = new GestureEngine(
+      event => this.handleActionSlotGesture(event),
+      (slotIndex, ratio) => this.hotbarUI.setChargeRatio(slotIndex, ratio)
     );
 
     this.bindInputs(canvas);
   }
 
-  private createDefaultPlayer(vocation: VocationType): PlayerEntity {
+  public createDefaultPlayer(vocation: VocationType): PlayerEntity {
+    let baseHp = CONFIG.MAGICIAN_BASE_HP;
+    let baseMana = CONFIG.MAGICIAN_BASE_MANA;
+
+    if (vocation === 'archer') {
+      baseHp = CONFIG.ARCHER_BASE_HP;
+      baseMana = CONFIG.ARCHER_BASE_MANA;
+    } else if (vocation === 'fighter') {
+      baseHp = CONFIG.FIGHTER_BASE_HP;
+      baseMana = CONFIG.FIGHTER_BASE_MANA;
+    } else if (vocation === 'paladin') {
+      baseHp = CONFIG.PALADIN_BASE_HP;
+      baseMana = CONFIG.PALADIN_BASE_MANA;
+    }
+
     return {
       id: vocation,
       vocation,
       x: 2,
       y: 2,
       facing: 'down',
-      hp: vocation === 'magician' ? 60 : 90,
-      max_hp: vocation === 'magician' ? 60 : 90,
-      mana: vocation === 'magician' ? 120 : 60,
-      max_mana: vocation === 'magician' ? 120 : 60,
+      hp: baseHp,
+      max_hp: baseHp,
+      mana: baseMana,
+      max_mana: baseMana,
       level: 1,
       xp: 0,
       xpToNextLevel: ProgressionSystem.getXpForLevel(1),
       skillBoosts: ProgressionSystem.getDefaultSkillBoosts(),
       current_floor: 1,
-      paperdoll: { right_hand: null, left_hand: null, armor: null },
-      backpack: [null, null, null, null, null, null],
+      paperdoll: { main_hand: null, off_hand: null, armor: null, relic: null },
+      action_bar: new Array(CONFIG.ACTION_BAR_SLOTS).fill(null),
+      backpack: new Array(CONFIG.BACKPACK_SLOTS).fill(null),
       lightSpellTimer: 0,
+      fortifyTimer: 0,
+      holyRadianceTimer: 0,
       cooldowns: {},
     };
   }
@@ -120,6 +155,7 @@ export class GameEngine {
     this.combatLogUI.log('Welcome to Lokarta: Come Into The Light.', 'system');
     this.isFloorCleared = false;
     this.isGameOver = false;
+    this.isDrafting = false;
 
     try {
       // 1. Fetch character profile from backend
@@ -127,22 +163,16 @@ export class GameEngine {
       const charData = await SyncManager.fetchCharacter(vocation);
 
       if (!isContinue) {
-        charData.current_floor = 1;
-        charData.level = 1;
-        charData.xp = 0;
-        charData.xp_to_next_level = ProgressionSystem.getXpForLevel(1);
-        charData.hp = vocation === 'magician' ? 60 : 90;
-        charData.max_hp = vocation === 'magician' ? 60 : 90;
-        charData.mana = vocation === 'magician' ? 120 : 60;
-        charData.max_mana = vocation === 'magician' ? 120 : 60;
+        // Zero-inventory baseline initialization for new run
+        this.player = this.createDefaultPlayer(vocation);
+      } else {
+        this.applyCharacterData(charData);
       }
-
-      this.applyCharacterData(charData);
 
       const targetFloor = isContinue ? (charData.current_floor || 1) : 1;
       this.player.current_floor = targetFloor;
 
-      // 2. Fetch dungeon floor
+      // 2. Fetch dungeon floor layout
       this.combatLogUI.log(`Fetching Floor ${targetFloor}/20 layout...`, 'system');
       const floorData = await SyncManager.fetchDungeonFloor(targetFloor);
       this.applyDungeonData(floorData);
@@ -151,16 +181,42 @@ export class GameEngine {
       LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
 
       this.combatLogUI.log(`Entered ${this.currentFloorName} at (${this.player.x}, ${this.player.y}).`, 'system');
-      if (this.player.paperdoll.left_hand?.item_id === 'torch' || this.player.paperdoll.right_hand?.item_id === 'torch') {
-        this.combatLogUI.log('Equipped Wooden Torch casts a warm glow (6 tiles radius).', 'spell');
-      }
 
-      // 4. Start loops
+      // 4. Start engine loops
       this.start();
+
+      // 5. Trigger Level 1 Fate Grant for fresh runs
+      if (!isContinue && this.player.level === 1) {
+        this.triggerFateDraft(false);
+      }
     } catch (err) {
       console.error('Session initialization error:', err);
       this.combatLogUI.log(`Error connecting to backend: ${(err as Error).message}`, 'warning');
     }
+  }
+
+  private triggerFateDraft(isLevelUp: boolean): void {
+    this.isDrafting = true;
+    const offer = FateGrantSystem.generateDraftOffer(this.player.vocation, this.player.level);
+    this.fateGrantModal.show(offer, isLevelUp, this.player.level);
+  }
+
+  private handleDraftConfirmed(selectedCards: FateCard[]): void {
+    this.isDrafting = false;
+    const result = FateGrantSystem.applyDraftedCards(this.player, selectedCards, this.gridMap);
+
+    if (result.addedToHotbar.length > 0) {
+      this.combatLogUI.log(`Granted: ${result.addedToHotbar.join(', ')}.`, 'loot');
+    }
+    if (result.addedToBackpack.length > 0) {
+      this.combatLogUI.log(`Stored in backpack: ${result.addedToBackpack.join(', ')}.`, 'loot');
+    }
+    if (result.droppedOnFloor.length > 0) {
+      this.combatLogUI.log(`Inventory full! Dropped on floor: ${result.droppedOnFloor.join(', ')}.`, 'warning');
+    }
+
+    this.updateHUD();
+    this.persistSave();
   }
 
   private applyCharacterData(data: CharacterResponse): void {
@@ -179,21 +235,39 @@ export class GameEngine {
     this.player.y = data.position?.y ?? 2;
 
     this.player.paperdoll = {
-      right_hand: data.paperdoll.right_hand || null,
-      left_hand: data.paperdoll.left_hand || null,
-      armor: data.paperdoll.armor || null,
+      main_hand: data.paperdoll?.main_hand || null,
+      off_hand: data.paperdoll?.off_hand || null,
+      armor: data.paperdoll?.armor || null,
+      relic: data.paperdoll?.relic || null,
     };
 
-    this.player.backpack = [null, null, null, null, null, null];
-    for (const b of data.backpack) {
-      if (b.slot_index >= 0 && b.slot_index < 6) {
-        this.player.backpack[b.slot_index] = {
-          item_id: b.item_id,
-          name: b.name,
-          type: b.type,
-          quantity: b.quantity,
-          stat_bonus: b.stat_bonus,
-        };
+    this.player.action_bar = new Array(CONFIG.ACTION_BAR_SLOTS).fill(null);
+    if (data.action_bar) {
+      for (const a of data.action_bar) {
+        if (a.slot_index >= 0 && a.slot_index < CONFIG.ACTION_BAR_SLOTS) {
+          this.player.action_bar[a.slot_index] = {
+            item_id: a.item_id,
+            name: a.name,
+            type: a.type,
+            quantity: a.quantity,
+            stat_bonus: a.stat_bonus,
+          };
+        }
+      }
+    }
+
+    this.player.backpack = new Array(CONFIG.BACKPACK_SLOTS).fill(null);
+    if (data.backpack) {
+      for (const b of data.backpack) {
+        if (b.slot_index >= 0 && b.slot_index < CONFIG.BACKPACK_SLOTS) {
+          this.player.backpack[b.slot_index] = {
+            item_id: b.item_id,
+            name: b.name,
+            type: b.type,
+            quantity: b.quantity,
+            stat_bonus: b.stat_bonus,
+          };
+        }
       }
     }
   }
@@ -202,7 +276,6 @@ export class GameEngine {
     this.currentFloorName = data.name;
     this.gridMap.loadFromMatrix(data.tile_matrix);
 
-    // Ensure player starts at the designated floor entrance
     if (data.entrance) {
       this.player.x = data.entrance.x;
       this.player.y = data.entrance.y;
@@ -218,7 +291,6 @@ export class GameEngine {
       color: l.color,
     }));
 
-    // Place initial loot on ground
     for (const loot of data.initial_loot) {
       this.gridMap.addItem(loot.x, loot.y, {
         item_id: loot.item_id,
@@ -229,7 +301,6 @@ export class GameEngine {
       });
     }
 
-    // Populate monster spawns
     this.monsters = data.spawns.map(s => ({
       id: s.id,
       type: s.type as any,
@@ -290,7 +361,7 @@ export class GameEngine {
   }
 
   private tick(): void {
-    if (!this.isRunning || this.isGameOver) return;
+    if (!this.isRunning || this.isGameOver || this.isDrafting) return;
     const deltaSec = CONFIG.TICK_INTERVAL_MS / 1000;
 
     // 1. Process continuous keyboard movement
@@ -300,7 +371,7 @@ export class GameEngine {
     CombatSystem.decrementCooldowns(this.player, deltaSec);
     CombatSystem.decrementSpellTimers(this.player, deltaSec);
 
-    // Passive regeneration (scales with bonusRegen from skill boosts)
+    // Passive regeneration
     const bonusRegen = this.player.skillBoosts?.bonusRegen || 0;
     this.regenAccumulator += deltaSec;
     if (this.regenAccumulator >= 5.0) {
@@ -329,9 +400,13 @@ export class GameEngine {
         this.projectiles.push(...res.projectiles);
       }
       if (res.damageToPlayer && res.damageToPlayer > 0) {
+        let finalDamage = res.damageToPlayer;
+        if (this.player.fortifyTimer && this.player.fortifyTimer > 0) {
+          finalDamage = Math.max(1, Math.round(finalDamage * 0.5));
+        }
         soundFX.playMonsterAttack();
         soundFX.playPlayerHurt();
-        this.addFloatingText(`-${res.damageToPlayer}`, this.player.x, this.player.y, '#ef4444');
+        this.addFloatingText(`-${finalDamage}`, this.player.x, this.player.y, '#ef4444');
       }
     }
 
@@ -365,7 +440,7 @@ export class GameEngine {
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const t = this.floatingTexts[i];
       t.elapsedMs += dtMs;
-      t.y -= (dtMs / 1000) * 20; // float upwards
+      t.y -= (dtMs / 1000) * 20;
       if (t.elapsedMs >= t.durationMs) {
         this.floatingTexts.splice(i, 1);
       }
@@ -385,11 +460,10 @@ export class GameEngine {
   }
 
   private updateHUD(): void {
-    const tileItems = this.gridMap.getItems(this.player.x, this.player.y);
     this.statusBarsUI.update(this.player, this.currentFloorName);
     this.paperdollUI.update(this.player.paperdoll);
     this.backpackUI.update(this.player.backpack);
-    this.hotbarUI.update(this.player, tileItems.length);
+    this.hotbarUI.update(this.player);
   }
 
   private processMovementInput(): void {
@@ -419,7 +493,7 @@ export class GameEngine {
       // Check wall collision
       if (this.gridMap.isWalkable(targetX, targetY)) {
         // Check monster collision
-        const monsterAtTarget = this.monsters.find(m => m.x === targetX && m.y === targetY);
+        const monsterAtTarget = this.monsters.find(m => m.x === targetX && m.y === targetY && m.hp > 0);
         if (monsterAtTarget) {
           this.selectedMonsterId = monsterAtTarget.id;
           this.combatLogUI.log(`Target locked on ${monsterAtTarget.name} (${monsterAtTarget.hp}/${monsterAtTarget.max_hp} HP).`, 'system');
@@ -429,32 +503,54 @@ export class GameEngine {
           this.player.y = targetY;
           soundFX.playFootstep();
 
-          // Auto-pickup items on the entered tile
-          const items = this.gridMap.getItems(this.player.x, this.player.y);
-          if (items.length > 0) {
-            this.handlePickUp();
+          // Frictionless walkover auto-loot on tile step
+          const lootRes = InventorySystem.autoLootTile(this.player, this.gridMap);
+          if (lootRes.success) {
+            soundFX.playItemPickup();
+            this.combatLogUI.log(lootRes.message, 'loot');
+            this.addFloatingText('Looted Item!', this.player.x, this.player.y, '#22c55e');
+            this.updateHUD();
+            this.persistSave();
           }
         }
       }
     }
   }
 
-  // --- Ability & Combat Triggers ---
+  // --- Multi-Modal Action Slot Activation ---
 
-  public handleTriggerAbility(abilityId: string): void {
-    if (this.isGameOver) return;
+  public handleActionSlotGesture(event: GestureEvent): void {
+    if (this.isGameOver || this.isDrafting) return;
 
-    if (abilityId === 'wand_spark') {
+    const { slotIndex, gesture } = event;
+    const item = this.player.action_bar[slotIndex];
+    if (!item) {
+      return; // Empty slot
+    }
+
+    if (item.type === 'spell') {
+      this.executeSpellAbility(item.item_id, gesture);
+    } else if (item.type === 'consumable') {
+      this.handleUseActionBarItem(slotIndex);
+    } else if (item.type === 'weapon' || item.type === 'offhand' || item.type === 'armor' || item.type === 'relic' || item.item_id === 'torch') {
+      this.handleEquipFromActionBar(slotIndex);
+    }
+  }
+
+  private executeSpellAbility(spellId: string, gesture: GestureType): void {
+    let res: CombatResult | null = null;
+
+    if (spellId === 'spell_wand_spark' || spellId === 'wand_spark') {
       const target = this.getTargetMonster(CONFIG.MAGICIAN_SPARK_RANGE);
       if (!target) {
         this.combatLogUI.log('No visible enemy in range for Wand Spark (click enemy to target).', 'warning');
         return;
       }
       soundFX.playWandSpark();
-      const res = CombatSystem.executeWandSpark(this.player, target, this.gridMap);
+      res = CombatSystem.executeWandSpark(this.player, target, this.gridMap, gesture);
       this.handleCombatResult(res, target.x, target.y);
-    } else if (abilityId === 'light') {
-      const res = CombatSystem.executeLightSpell(this.player);
+    } else if (spellId === 'spell_light' || spellId === 'light') {
+      res = CombatSystem.executeLightSpell(this.player);
       if (res.success) {
         soundFX.playLightSpell();
         this.combatLogUI.log(res.message!, 'spell');
@@ -463,39 +559,83 @@ export class GameEngine {
       } else {
         this.combatLogUI.log(res.message!, 'warning');
       }
-    } else if (abilityId === 'energy_beam') {
-      const res = CombatSystem.executeEnergyBeam(this.player, this.player.facing, this.gridMap, this.monsters);
+    } else if (spellId === 'spell_energy_beam' || spellId === 'energy_beam') {
+      res = CombatSystem.executeEnergyBeam(this.player, this.player.facing, this.gridMap, this.monsters, gesture);
       if (res.success) {
         soundFX.playEnergyBeam();
         this.handleCombatResult(res, this.player.x, this.player.y);
       } else {
         this.combatLogUI.log(res.message!, 'warning');
       }
-    } else if (abilityId === 'bow_shot') {
+    } else if (spellId === 'spell_bow_shot' || spellId === 'bow_shot') {
       const target = this.getTargetMonster(CONFIG.ARCHER_BOW_RANGE);
       if (!target) {
         this.combatLogUI.log('No visible enemy in range for Bow Shot (click enemy to target).', 'warning');
         return;
       }
       soundFX.playBowShot();
-      const res = CombatSystem.executeBowShot(this.player, target, this.gridMap);
+      res = CombatSystem.executeBowShot(this.player, target, this.gridMap, gesture);
       this.handleCombatResult(res, target.x, target.y);
-    } else if (abilityId === 'power_shot') {
+    } else if (spellId === 'spell_power_shot' || spellId === 'power_shot') {
       const target = this.getTargetMonster(CONFIG.ARCHER_POWER_SHOT_RANGE);
       if (!target) {
         this.combatLogUI.log('No visible enemy in range for Power Shot (click enemy to target).', 'warning');
         return;
       }
       soundFX.playPowerShot();
-      const res = CombatSystem.executePowerShot(this.player, target, this.gridMap);
+      res = CombatSystem.executePowerShot(this.player, target, this.gridMap);
       this.handleCombatResult(res, target.x, target.y);
+    } else if (spellId === 'spell_slash' || spellId === 'slash') {
+      const target = this.getTargetMonster(1.5);
+      if (!target) {
+        this.combatLogUI.log('No adjacent enemy to strike with Sword Slash.', 'warning');
+        return;
+      }
+      res = CombatSystem.executeFighterSlash(this.player, target, gesture);
+      this.handleCombatResult(res, target.x, target.y);
+    } else if (spellId === 'spell_cleave' || spellId === 'cleave') {
+      res = CombatSystem.executeFighterCleave(this.player, this.monsters);
+      this.handleCombatResult(res, this.player.x, this.player.y);
+    } else if (spellId === 'spell_fortify' || spellId === 'fortify') {
+      res = CombatSystem.executeFighterFortify(this.player);
+      if (res.success) {
+        soundFX.playEquip();
+        this.combatLogUI.log(res.message!, 'spell');
+        this.addFloatingText('Shield Wall!', this.player.x, this.player.y, '#60a5fa');
+      } else {
+        this.combatLogUI.log(res.message!, 'warning');
+      }
+    } else if (spellId === 'spell_holy_strike' || spellId === 'holy_strike') {
+      const target = this.getTargetMonster(1.5);
+      if (!target) {
+        this.combatLogUI.log('No adjacent enemy to smite with Holy Strike.', 'warning');
+        return;
+      }
+      res = CombatSystem.executePaladinHolyStrike(this.player, target, gesture);
+      this.handleCombatResult(res, target.x, target.y);
+    } else if (spellId === 'spell_healing_prayer' || spellId === 'healing_prayer') {
+      res = CombatSystem.executePaladinHeal(this.player);
+      if (res.success) {
+        soundFX.playLightSpell();
+        this.combatLogUI.log(res.message!, 'spell');
+        this.addFloatingText(`+${res.healAmount} HP`, this.player.x, this.player.y, '#4ade80');
+      } else {
+        this.combatLogUI.log(res.message!, 'warning');
+      }
+    } else if (spellId === 'spell_holy_radiance' || spellId === 'holy_radiance') {
+      res = CombatSystem.executePaladinRadiance(this.player, this.monsters);
+      if (res.success) {
+        soundFX.playLightSpell();
+        this.handleCombatResult(res, this.player.x, this.player.y);
+      } else {
+        this.combatLogUI.log(res.message!, 'warning');
+      }
     }
 
     this.updateHUD();
   }
 
   private getTargetMonster(maxRange: number): MonsterEntity | null {
-    // 1. If currently selected monster is alive and within range and visible
     if (this.selectedMonsterId) {
       const monster = this.monsters.find(m => m.id === this.selectedMonsterId && m.hp > 0);
       if (monster && monster.visible) {
@@ -504,7 +644,6 @@ export class GameEngine {
       }
     }
 
-    // 2. Otherwise auto-target closest visible monster within range and LOS
     let closest: MonsterEntity | null = null;
     let minDist = maxRange + 1;
 
@@ -525,7 +664,7 @@ export class GameEngine {
     return closest;
   }
 
-  private handleCombatResult(res: any, targetX: number, targetY: number): void {
+  private handleCombatResult(res: CombatResult, targetX: number, targetY: number): void {
     if (!res.success) {
       if (res.message) this.combatLogUI.log(res.message, 'warning');
       return;
@@ -557,7 +696,6 @@ export class GameEngine {
           }
         }
 
-        // Calculate and award XP
         const isBoss = deadMonster.id.includes('boss') || deadMonster.max_hp >= 250;
         const xpEarned = ProgressionSystem.getMonsterXp(deadMonster.type, this.player.current_floor, isBoss);
         const lvlRes = ProgressionSystem.awardXP(this.player, xpEarned);
@@ -574,6 +712,9 @@ export class GameEngine {
           this.addFloatingText(`⭐ LEVEL UP! [Lv. ${lvlRes.newLevel}]`, this.player.x, this.player.y, '#ffd700');
           this.updateHUD();
           this.persistSave();
+
+          // Level-Up Fate Grant Draft
+          this.triggerFateDraft(true);
         }
 
         this.monsters.splice(index, 1);
@@ -584,27 +725,32 @@ export class GameEngine {
     }
   }
 
-  // --- Inventory Interactions ---
+  // --- Inventory & Action Bar Handlers ---
 
-  public async handlePickUp(): Promise<void> {
-    const res = InventorySystem.pickUpItem(this.player, this.gridMap);
+  public async handleUseActionBarItem(slotIndex: number): Promise<void> {
+    const res = InventorySystem.useActionBarItem(this.player, slotIndex);
     if (res.success) {
-      soundFX.playItemPickup();
       this.combatLogUI.log(res.message, 'loot');
-      this.addFloatingText(`+${res.item?.name}`, this.player.x, this.player.y, '#22c55e');
+      if (res.item?.item_id.includes('potion')) {
+        soundFX.playPotionDrink();
+        this.addFloatingText(`Used ${res.item.name}!`, this.player.x, this.player.y, '#38bdf8');
+      } else {
+        soundFX.playEquip();
+      }
+      LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
       this.updateHUD();
-      // Auto-save on pickup per brief 07
       await this.persistSave();
     } else {
       this.combatLogUI.log(res.message, 'warning');
     }
   }
 
-  public async handleDropBackpackItem(slotIndex: number): Promise<void> {
-    const res = InventorySystem.dropItem(this.player, slotIndex, this.gridMap);
+  public async handleEquipFromActionBar(slotIndex: number): Promise<void> {
+    const res = InventorySystem.equipItemFromActionBar(this.player, slotIndex);
     if (res.success) {
-      soundFX.playUnequip();
+      soundFX.playEquip();
       this.combatLogUI.log(res.message, 'system');
+      LightingSystem.updateLighting(this.gridMap, this.player, this.ambientLights, this.monsters);
       this.updateHUD();
       await this.persistSave();
     } else {
@@ -630,7 +776,19 @@ export class GameEngine {
     }
   }
 
-  public async handleUnequip(slotName: keyof PaperdollSlots): Promise<void> {
+  public async handleDropBackpackItem(slotIndex: number): Promise<void> {
+    const res = InventorySystem.dropBackpackItem(this.player, slotIndex, this.gridMap);
+    if (res.success) {
+      soundFX.playUnequip();
+      this.combatLogUI.log(res.message, 'system');
+      this.updateHUD();
+      await this.persistSave();
+    } else {
+      this.combatLogUI.log(res.message, 'warning');
+    }
+  }
+
+  public async handleUnequip(slotName: PaperdollSlotType): Promise<void> {
     const res = InventorySystem.unequipItem(this.player, slotName);
     if (res.success) {
       soundFX.playUnequip();
@@ -643,32 +801,16 @@ export class GameEngine {
     }
   }
 
-  public async handleUseGround(): Promise<void> {
-    const res = InventorySystem.useGroundItem(this.player, this.gridMap);
-    if (res.success) {
-      this.combatLogUI.log(res.message, 'loot');
-      if (res.item?.item_id.includes('potion')) {
-        soundFX.playPotionDrink();
-        this.addFloatingText(`Used ${res.item.name}!`, this.player.x, this.player.y, '#38bdf8');
-      } else {
-        soundFX.playEquip();
-      }
-      this.updateHUD();
-      await this.persistSave();
-    } else {
-      this.combatLogUI.log(res.message, 'warning');
-    }
+  public handleSwapActionSlots(fromSlot: number, toSlot: number): void {
+    InventorySystem.moveItem(this.player, 'action_bar', fromSlot, 'action_bar', toSlot);
+    soundFX.playClick();
+    this.updateHUD();
+    this.persistSave();
   }
 
   private async persistSave(): Promise<void> {
     try {
-      await SyncManager.saveCharacter({
-        ...this.player,
-        level: this.player.level,
-        xp: this.player.xp,
-        xp_to_next_level: this.player.xpToNextLevel,
-        position: { x: this.player.x, y: this.player.y },
-      } as any);
+      await SyncManager.saveCharacter(this.player);
       this.combatLogUI.log('Progress saved.', 'system');
     } catch (err) {
       console.warn('Auto-save error:', err);
@@ -694,6 +836,7 @@ export class GameEngine {
           `⭐ LEVEL UP! You reached Level ${lvlRes.newLevel}! (+${lvlRes.hpGained} Max HP, +${lvlRes.manaGained} Max MP)`,
           'spell'
         );
+        this.triggerFateDraft(true);
       }
 
       try {
@@ -709,7 +852,7 @@ export class GameEngine {
         console.error('Floor transition error:', err);
       }
     } else {
-      // Floor 20 Final Clear!
+      // Floor 20 Final Clear
       this.isFloorCleared = true;
       soundFX.playVictory();
       this.combatLogUI.log('🎉 YOU CONQUERED THE ABYSSAL SANCTUM! ALL 20 FLOORS CLEARED!', 'victory');
@@ -741,66 +884,88 @@ export class GameEngine {
     window.addEventListener('keydown', e => {
       this.keysDown.add(e.code);
 
-      // Hotkeys
-      if (e.code === 'Digit1' || e.code === 'Numpad1') {
+      // Keys 1..9 and 0 for 10 Action Slots
+      const slotIndex = GestureEngine.keyToSlotIndex(e.key);
+      if (slotIndex !== null) {
         e.preventDefault();
-        const abilities = this.hotbarUI.getAbilitiesForVocation(this.player);
-        if (abilities[0]) this.handleTriggerAbility(abilities[0].id);
-      } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
-        e.preventDefault();
-        const abilities = this.hotbarUI.getAbilitiesForVocation(this.player);
-        if (abilities[1]) this.handleTriggerAbility(abilities[1].id);
-      } else if (e.code === 'Digit3' || e.code === 'Numpad3') {
-        e.preventDefault();
-        const abilities = this.hotbarUI.getAbilitiesForVocation(this.player);
-        if (abilities[2]) this.handleTriggerAbility(abilities[2].id);
-      } else if (e.code === 'Digit4' || e.code === 'Numpad4') {
-        e.preventDefault();
-        this.handleUseBackpackItem(0);
-      } else if (e.code === 'Digit5' || e.code === 'Numpad5') {
-        e.preventDefault();
-        this.handleUseBackpackItem(1);
-      } else if (e.code === 'Digit6' || e.code === 'Numpad6') {
-        e.preventDefault();
-        this.handleUseBackpackItem(2);
-      } else if (e.code === 'Digit7' || e.code === 'Numpad7') {
-        e.preventDefault();
-        this.handleUseBackpackItem(3);
-      } else if (e.code === 'Digit8' || e.code === 'Numpad8') {
-        e.preventDefault();
-        this.handleUseBackpackItem(4);
-      } else if (e.code === 'Digit9' || e.code === 'Numpad9') {
-        e.preventDefault();
-        this.handleUseBackpackItem(5);
-      } else if (e.code === 'KeyE' || e.code === 'Space') {
-        e.preventDefault();
-        this.handlePickUp();
-      } else if (e.code === 'KeyU') {
-        e.preventDefault();
-        this.handleUseGround();
+        this.gestureEngine.handleInputDown(slotIndex);
       }
     });
 
     window.addEventListener('keyup', e => {
       this.keysDown.delete(e.code);
+
+      const slotIndex = GestureEngine.keyToSlotIndex(e.key);
+      if (slotIndex !== null) {
+        e.preventDefault();
+        this.gestureEngine.handleInputUp(slotIndex);
+      }
     });
 
-    // Canvas click targeting
+    // Canvas click: targeting or adjacent item floor looting
     canvas.addEventListener('click', e => {
+      if (this.isGameOver || this.isDrafting) return;
       const rect = canvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
 
       const gridPos = this.renderer.screenToGrid(clickX, clickY);
 
-      // Check if clicked a monster
-      const clickedMonster = this.monsters.find(m => m.x === gridPos.x && m.y === gridPos.y && m.visible && m.hp > 0);
+      // 1. Check if clicked a visible monster
+      const clickedMonster = this.monsters.find(
+        m => m.x === gridPos.x && m.y === gridPos.y && m.visible && m.hp > 0
+      );
       if (clickedMonster) {
         this.selectedMonsterId = clickedMonster.id;
-        this.combatLogUI.log(`Targeted ${clickedMonster.name} (${clickedMonster.hp}/${clickedMonster.max_hp} HP).`, 'system');
-      } else {
-        this.selectedMonsterId = null;
+        this.combatLogUI.log(
+          `Targeted ${clickedMonster.name} (${clickedMonster.hp}/${clickedMonster.max_hp} HP).`,
+          'system'
+        );
+        return;
       }
+
+      // 2. Check if clicked a ground item on an adjacent or occupied tile
+      const dist = Math.hypot(gridPos.x - this.player.x, gridPos.y - this.player.y);
+      if (dist <= 1.5) {
+        const itemsOnTile = this.gridMap.getItems(gridPos.x, gridPos.y);
+        if (itemsOnTile.length > 0) {
+          // If on same tile or adjacent, loot
+          if (gridPos.x === this.player.x && gridPos.y === this.player.y) {
+            const lootRes = InventorySystem.autoLootTile(this.player, this.gridMap);
+            if (lootRes.success) {
+              soundFX.playItemPickup();
+              this.combatLogUI.log(lootRes.message, 'loot');
+              this.addFloatingText('Looted Item!', this.player.x, this.player.y, '#22c55e');
+              this.updateHUD();
+              this.persistSave();
+            }
+          } else {
+            // Adjacent tile pickup
+            const topItem = this.gridMap.popTopItem(gridPos.x, gridPos.y);
+            if (topItem) {
+              // Add to player inventory
+              const emptySlot = this.player.action_bar.findIndex(s => s === null);
+              if (emptySlot !== -1) {
+                this.player.action_bar[emptySlot] = topItem;
+                this.combatLogUI.log(`Looted ${topItem.name} from floor into Slot ${emptySlot + 1}.`, 'loot');
+              } else {
+                const emptyBackpack = this.player.backpack.findIndex(s => s === null);
+                if (emptyBackpack !== -1) {
+                  this.player.backpack[emptyBackpack] = topItem;
+                  this.combatLogUI.log(`Looted ${topItem.name} from floor into Backpack ${emptyBackpack + 1}.`, 'loot');
+                } else {
+                  this.gridMap.addItem(gridPos.x, gridPos.y, topItem);
+                  this.combatLogUI.log('Inventory full! Cannot loot item.', 'warning');
+                }
+              }
+              this.updateHUD();
+              this.persistSave();
+            }
+          }
+        }
+      }
+
+      this.selectedMonsterId = null;
     });
   }
 
@@ -819,7 +984,6 @@ export class GameEngine {
           <p><strong>Damage Boost:</strong> +${Math.round(((this.player.skillBoosts?.damageMultiplier || 1) - 1) * 100)}%</p>
           <p><strong>Remaining HP:</strong> ${this.player.hp} / ${this.player.max_hp}</p>
           <p><strong>Remaining MP:</strong> ${this.player.mana} / ${this.player.max_mana}</p>
-          <p><strong>Backpack Items:</strong> ${this.player.backpack.filter(Boolean).length} / 6 slots</p>
         </div>
         <button class="action-btn" id="btn-restart">Play Again</button>
       </div>

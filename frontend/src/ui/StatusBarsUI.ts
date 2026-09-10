@@ -16,11 +16,38 @@ export class StatusBarsUI {
     const mpPercent = Math.max(0, Math.min(100, (player.mana / player.max_mana) * 100));
     const xpPercent = player.level >= 20 ? 100 : Math.max(0, Math.min(100, (player.xp / (player.xpToNextLevel || 100)) * 100));
     const vocationDisplay = player.vocation.charAt(0).toUpperCase() + player.vocation.slice(1);
+    const vocationIcon = player.vocation === 'magician' ? '🧙' : player.vocation === 'archer' ? '🏹' : player.vocation === 'fighter' ? '⚔️' : '🛡️';
     const dmgBonusPct = Math.round(((player.skillBoosts?.damageMultiplier || 1.0) - 1.0) * 100);
+
+    let buffsHtml = '';
+    if (player.lightSpellTimer > 0) {
+      buffsHtml += `
+        <div class="active-buff-badge">
+          <span class="buff-icon">✨</span>
+          <span class="buff-text">Light Aura: <strong>${Math.ceil(player.lightSpellTimer)}s</strong></span>
+        </div>
+      `;
+    }
+    if (player.fortifyTimer && player.fortifyTimer > 0) {
+      buffsHtml += `
+        <div class="active-buff-badge fortify-buff">
+          <span class="buff-icon">🛡️</span>
+          <span class="buff-text">Fortify: <strong>${Math.ceil(player.fortifyTimer)}s</strong> (-50% Dmg)</span>
+        </div>
+      `;
+    }
+    if (player.holyRadianceTimer && player.holyRadianceTimer > 0) {
+      buffsHtml += `
+        <div class="active-buff-badge radiance-buff">
+          <span class="buff-icon">☀️</span>
+          <span class="buff-text">Radiance: <strong>${Math.ceil(player.holyRadianceTimer)}s</strong></span>
+        </div>
+      `;
+    }
 
     this.container.innerHTML = `
       <div class="status-header">
-        <div class="vocation-tag"><span class="level-badge">Lv. ${player.level || 1}</span> <strong class="val">${vocationDisplay}</strong></div>
+        <div class="vocation-tag"><span class="vocation-icon">${vocationIcon}</span> <span class="level-badge">Lv. ${player.level || 1}</span> <strong class="val">${vocationDisplay}</strong></div>
         <div class="floor-tag"><span class="label">Floor:</span> <strong class="val">${player.current_floor}/20 (${floorName})</strong></div>
       </div>
 
@@ -36,7 +63,7 @@ export class StatusBarsUI {
 
       <div class="meter-container mp-meter">
         <div class="meter-info">
-          <span class="meter-label">MANA (MP)</span>
+          <span class="meter-label">MANA / STAMINA (MP)</span>
           <span class="meter-values">${player.mana} / ${player.max_mana}</span>
         </div>
         <div class="meter-bar-track">
@@ -64,14 +91,7 @@ export class StatusBarsUI {
           : ''
       }
 
-      ${
-        player.lightSpellTimer > 0
-          ? `<div class="active-buff-badge">
-              <span class="buff-icon">✨</span>
-              <span class="buff-text">Light Aura: <strong>${Math.ceil(player.lightSpellTimer)}s</strong> (7 tiles)</span>
-            </div>`
-          : ''
-      }
+      ${buffsHtml}
     `;
   }
 }

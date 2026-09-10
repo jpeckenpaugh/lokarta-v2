@@ -8,9 +8,9 @@ export class LightingSystem {
     if (player.lightSpellTimer > 0) {
       return CONFIG.LIGHT_SPELL_RADIUS;
     }
-    const leftHand = player.paperdoll.left_hand;
-    const rightHand = player.paperdoll.right_hand;
-    if ((leftHand && leftHand.item_id === 'torch') || (rightHand && rightHand.item_id === 'torch')) {
+    const offHand = player.paperdoll.off_hand;
+    const mainHand = player.paperdoll.main_hand;
+    if ((offHand && offHand.item_id === 'torch') || (mainHand && mainHand.item_id === 'torch')) {
       return CONFIG.TORCH_LIGHT_RADIUS;
     }
     return CONFIG.BASE_LIGHT_RADIUS;

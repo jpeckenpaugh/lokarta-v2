@@ -1,10 +1,10 @@
-import { PaperdollSlots, Item } from '../types/item';
+import { PaperdollSlots, PaperdollSlotType, Item } from '../types/item';
 
 export class PaperdollUI {
   private container: HTMLElement;
-  private onUnequipCallback: (slotName: keyof PaperdollSlots) => void;
+  private onUnequipCallback: (slotName: PaperdollSlotType) => void;
 
-  constructor(containerId: string, onUnequip: (slotName: keyof PaperdollSlots) => void) {
+  constructor(containerId: string, onUnequip: (slotName: PaperdollSlotType) => void) {
     const el = document.getElementById(containerId);
     if (!el) {
       throw new Error(`Paperdoll container #${containerId} not found.`);
@@ -14,20 +14,21 @@ export class PaperdollUI {
   }
 
   public update(paperdoll: PaperdollSlots): void {
-    const slots: { key: keyof PaperdollSlots; label: string; iconPlaceholder: string }[] = [
-      { key: 'right_hand', label: 'Right Hand (Weapon)', iconPlaceholder: '⚔️' },
-      { key: 'armor', label: 'Armor (Body)', iconPlaceholder: '🛡️' },
-      { key: 'left_hand', label: 'Left Hand (Offhand)', iconPlaceholder: '🕯️' },
+    const slots: { key: PaperdollSlotType; label: string; iconPlaceholder: string }[] = [
+      { key: 'main_hand', label: 'Main Hand (Weapon)', iconPlaceholder: '⚔️' },
+      { key: 'off_hand', label: 'Off-Hand (Shield/Torch)', iconPlaceholder: '🛡️' },
+      { key: 'armor', label: 'Body Armor', iconPlaceholder: '🦺' },
+      { key: 'relic', label: 'Relic / Accessory', iconPlaceholder: '👑' },
     ];
 
     let html = `
-      <div class="panel-header">EQUIPMENT (PAPERDOLL)</div>
+      <div class="panel-header">EQUIPMENT (4-SLOT PAPERDOLL)</div>
       <div class="paperdoll-slots-grid">
     `;
 
     for (const slot of slots) {
       const item = paperdoll[slot.key];
-      const hasItem = item !== null;
+      const hasItem = item !== null && item !== undefined;
       const itemName = hasItem ? item.name : 'Empty';
       const statBonus = hasItem && item.stat_bonus > 0 ? ` (+${item.stat_bonus})` : '';
 
@@ -38,7 +39,7 @@ export class PaperdollUI {
             ${hasItem ? this.renderItemIcon(item) : `<span class="empty-icon">${slot.iconPlaceholder}</span>`}
           </div>
           <div class="slot-item-name">${itemName}</div>
-          ${hasItem ? `<button class="unequip-btn" data-slot="${slot.key}" title="Unequip to backpack">✕</button>` : ''}
+          ${hasItem ? `<button class="unequip-btn" data-slot="${slot.key}" title="Unequip to inventory">✕</button>` : ''}
         </div>
       `;
     }
@@ -51,7 +52,7 @@ export class PaperdollUI {
     unequipButtons.forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        const slotKey = (e.currentTarget as HTMLElement).getAttribute('data-slot') as keyof PaperdollSlots;
+        const slotKey = (e.currentTarget as HTMLElement).getAttribute('data-slot') as PaperdollSlotType;
         if (slotKey) {
           this.onUnequipCallback(slotKey);
         }
@@ -62,7 +63,7 @@ export class PaperdollUI {
     const slotElements = this.container.querySelectorAll('.paperdoll-slot.occupied');
     slotElements.forEach(el => {
       el.addEventListener('dblclick', e => {
-        const slotKey = (e.currentTarget as HTMLElement).getAttribute('data-slot') as keyof PaperdollSlots;
+        const slotKey = (e.currentTarget as HTMLElement).getAttribute('data-slot') as PaperdollSlotType;
         if (slotKey) {
           this.onUnequipCallback(slotKey);
         }
@@ -74,9 +75,12 @@ export class PaperdollUI {
     if (item.item_id === 'torch') return '🔥';
     if (item.item_id.includes('wand')) return '🪄';
     if (item.item_id.includes('bow')) return '🏹';
+    if (item.item_id.includes('sword') || item.item_id.includes('blade')) return '⚔️';
+    if (item.item_id.includes('warhammer') || item.item_id.includes('hammer')) return '🔨';
     if (item.item_id.includes('robe')) return '🥋';
-    if (item.item_id.includes('armor')) return '🦺';
-    if (item.item_id.includes('shield')) return '🛡️';
+    if (item.item_id.includes('armor') || item.item_id.includes('cuirass')) return '🦺';
+    if (item.item_id.includes('shield') || item.item_id.includes('buckler')) return '🛡️';
+    if (item.type === 'relic') return '👑';
     return '📦';
   }
 }

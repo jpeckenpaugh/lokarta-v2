@@ -30,8 +30,11 @@ export interface PlayerEntity {
   skillBoosts: SkillBoosts;
   current_floor: number;
   paperdoll: PaperdollSlots;
-  backpack: (Item | null)[];
+  action_bar: (Item | null)[]; // 10 action slots (0..9)
+  backpack: (Item | null)[]; // 6 backpack slots (0..5)
   lightSpellTimer: number; // remaining duration in seconds
+  fortifyTimer?: number; // Fighter defensive buff remaining duration
+  holyRadianceTimer?: number; // Paladin radiant buff remaining duration
   cooldowns: Record<string, number>; // abilityId -> remaining cooldown in seconds
 }
 
@@ -54,7 +57,15 @@ export interface MonsterEntity {
   visible: boolean; // computed by light mask
 }
 
-export type ProjectileType = 'wand_spark' | 'energy_beam' | 'bow_shot' | 'power_shot' | 'shadow_bolt';
+export type ProjectileType =
+  | 'wand_spark'
+  | 'energy_beam'
+  | 'bow_shot'
+  | 'power_shot'
+  | 'shadow_bolt'
+  | 'fighter_cleave'
+  | 'paladin_hammer'
+  | 'holy_heal';
 
 export interface Projectile {
   id: string;

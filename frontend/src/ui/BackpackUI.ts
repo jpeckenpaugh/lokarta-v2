@@ -31,14 +31,13 @@ export class BackpackUI {
     for (let i = 0; i < 6; i++) {
       const item = backpack[i] || null;
       const isOccupied = item !== null;
-      const hotkey = i + 4;
       const tooltip = isOccupied
-        ? `${item.name} (${item.type})${item.quantity > 1 ? ` x${item.quantity}` : ''}${item.stat_bonus > 0 ? ` [Stat: +${item.stat_bonus}]` : ''} [${hotkey}] - Click or press ${hotkey} to Use/Equip, [Drop] to place on ground`
-        : `Slot [${hotkey}] (Empty)`;
+        ? `${item.name} (${item.type})${item.quantity > 1 ? ` x${item.quantity}` : ''}${item.stat_bonus > 0 ? ` [Stat: +${item.stat_bonus}]` : ''} - Click to Use/Equip, [Drop] to place on ground`
+        : `Slot ${i + 1} (Empty)`;
 
       html += `
         <div class="backpack-slot ${isOccupied ? 'occupied' : 'empty'}" data-index="${i}" title="${tooltip}">
-          <div class="slot-num"><span class="slot-hotkey">[${hotkey}]</span></div>
+          <div class="slot-num"><span class="slot-hotkey">#${i + 1}</span></div>
           <div class="slot-content">
             ${isOccupied ? this.renderItemIcon(item) : ''}
           </div>
@@ -47,7 +46,7 @@ export class BackpackUI {
           ${
             isOccupied
               ? `<div class="slot-actions">
-                  <button class="use-btn" data-index="${i}" title="Use / Equip">Use</button>
+                  <button class="use-btn" data-index="${i}" title="Use / Equip">Equip/Use</button>
                   <button class="drop-btn" data-index="${i}" title="Drop to ground">Drop</button>
                 </div>`
               : ''
@@ -83,12 +82,11 @@ export class BackpackUI {
       });
     });
 
-    // Direct click / double click slot
+    // Direct click slot
     const slotElements = this.container.querySelectorAll('.backpack-slot.occupied');
     slotElements.forEach(el => {
       el.addEventListener('click', e => {
-        // If not clicking drop button, trigger use
-        if ((e.target as HTMLElement).classList.contains('drop-btn')) return;
+        if ((e.target as HTMLElement).classList.contains('drop-btn') || (e.target as HTMLElement).classList.contains('use-btn')) return;
         const index = parseInt((e.currentTarget as HTMLElement).getAttribute('data-index') || '-1', 10);
         if (index >= 0) {
           this.onUseCallback(index);
@@ -99,12 +97,17 @@ export class BackpackUI {
 
   private renderItemIcon(item: Item): string {
     if (item.item_id === 'health_potion') return '🧪';
-    if (item.item_id === 'mana_potion') return '⚗️';
+    if (item.item_id === 'mana_potion') return '🔷';
     if (item.item_id === 'torch') return '🔥';
     if (item.item_id === 'arrows') return '🏹';
     if (item.item_id.includes('wand')) return '🪄';
-    if (item.item_id.includes('robe')) return '🥋';
     if (item.item_id.includes('bow')) return '🏹';
+    if (item.item_id.includes('sword') || item.item_id.includes('blade')) return '⚔️';
+    if (item.item_id.includes('warhammer') || item.item_id.includes('hammer')) return '🔨';
+    if (item.item_id.includes('robe')) return '🥋';
+    if (item.item_id.includes('armor') || item.item_id.includes('plate') || item.item_id.includes('cuirass')) return '🦺';
+    if (item.item_id.includes('shield') || item.item_id.includes('buckler')) return '🛡️';
+    if (item.type === 'relic') return '👑';
     return '📦';
   }
 }

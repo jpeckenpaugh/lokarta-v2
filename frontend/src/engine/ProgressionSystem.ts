@@ -41,12 +41,15 @@ export class ProgressionSystem {
    */
   public static computeSkillBoosts(vocation: VocationType, level: number): SkillBoosts {
     const levelDelta = Math.max(0, level - 1);
-    const damageStep = vocation === 'magician' ? 0.10 : 0.12;
+    let damageStep = 0.10;
+    if (vocation === 'archer') damageStep = 0.12;
+    if (vocation === 'fighter') damageStep = 0.14;
+    if (vocation === 'paladin') damageStep = 0.12;
 
     return {
       damageMultiplier: 1.0 + levelDelta * damageStep,
-      bonusRange: Math.floor(levelDelta / 4), // +1 tile range every 4 levels
-      bonusRegen: Math.floor(levelDelta / 3), // +1 passive regen bonus every 3 levels
+      bonusRange: (vocation === 'archer' || vocation === 'magician') ? Math.floor(levelDelta / 4) : 0,
+      bonusRegen: Math.floor(levelDelta / 3),
     };
   }
 
@@ -90,9 +93,23 @@ export class ProgressionSystem {
       player.xp = 0;
       player.xpToNextLevel = ProgressionSystem.getXpForLevel(player.level);
 
-      // Stat Boosts per level
-      const hpInc = player.vocation === 'magician' ? 8 : 14;
-      const manaInc = player.vocation === 'magician' ? 16 : 8;
+      // Stat Boosts per level based on vocation
+      let hpInc = 10;
+      let manaInc = 10;
+
+      if (player.vocation === 'magician') {
+        hpInc = 8;
+        manaInc = 16;
+      } else if (player.vocation === 'archer') {
+        hpInc = 14;
+        manaInc = 8;
+      } else if (player.vocation === 'fighter') {
+        hpInc = 18;
+        manaInc = 4;
+      } else if (player.vocation === 'paladin') {
+        hpInc = 15;
+        manaInc = 10;
+      }
 
       player.max_hp += hpInc;
       player.max_mana += manaInc;
@@ -114,9 +131,9 @@ export class ProgressionSystem {
     player.skillBoosts = ProgressionSystem.computeSkillBoosts(player.vocation, player.level);
 
     const leveledUp = player.level > oldLevel;
-    const oldDmg = 1.0 + (oldLevel - 1) * (player.vocation === 'magician' ? 0.10 : 0.12);
+    const oldBoost = ProgressionSystem.computeSkillBoosts(player.vocation, oldLevel);
     const newDmg = player.skillBoosts.damageMultiplier;
-    const damagePercentGained = Math.round((newDmg - oldDmg) * 100);
+    const damagePercentGained = Math.round((newDmg - oldBoost.damageMultiplier) * 100);
 
     return {
       leveledUp,

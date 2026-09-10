@@ -1,21 +1,29 @@
 import { ItemType } from './item';
 
-export type VocationType = 'magician' | 'archer';
+export type VocationType = 'magician' | 'archer' | 'fighter' | 'paladin';
 
 export interface PositionDTO {
-  x: int;
-  y: int;
+  x: number;
+  y: number;
 }
 
-type int = number;
-
 export interface PaperdollDTO {
-  right_hand?: ItemDTO | null;
-  left_hand?: ItemDTO | null;
+  main_hand?: ItemDTO | null;
+  off_hand?: ItemDTO | null;
   armor?: ItemDTO | null;
+  relic?: ItemDTO | null;
 }
 
 export interface ItemDTO {
+  item_id: string;
+  name: string;
+  type: ItemType;
+  quantity: number;
+  stat_bonus: number;
+}
+
+export interface ActionSlotDTO {
+  slot_index: number;
   item_id: string;
   name: string;
   type: ItemType;
@@ -44,8 +52,9 @@ export interface CharacterResponse {
   xp_to_next_level?: number;
   current_floor: number;
   position: PositionDTO;
-  paperdoll: PaperdollDTO;
+  action_bar?: ActionSlotDTO[];
   backpack: BackpackSlotDTO[];
+  paperdoll: PaperdollDTO;
 }
 
 export interface CharacterSaveRequest {
@@ -60,8 +69,9 @@ export interface CharacterSaveRequest {
   xp_to_next_level?: number;
   current_floor: number;
   position: PositionDTO;
-  paperdoll: PaperdollDTO;
+  action_bar: ActionSlotDTO[];
   backpack: BackpackSlotDTO[];
+  paperdoll: PaperdollDTO;
 }
 
 export interface CharacterSaveResponse {
