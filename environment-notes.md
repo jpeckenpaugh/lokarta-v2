@@ -83,6 +83,18 @@ pytest
 
 ## 6. Known Assumptions & Downstream Guidance
 
-1. **Stage 5 (Architect)**: Design data schemas (Character, Inventory, Dungeon Floor) using Pydantic models and SQLite table definitions adhering to the 40×40 floor format and 6-slot backpack / 3-slot paperdoll rules.
-2. **Stage 6 (Backend Engineer)**: Implement `backend/main.py` exposing `GET /api/dungeons/{id}`, `GET /api/characters/{id}`, `POST /api/character/save`, and `POST /api/dungeon/sync`.
-3. **Stage 7 (Frontend Engineer)**: Scaffold the Vite + TypeScript application in `frontend/`, providing a centered 2D canvas grid and modular DOM HUD panels.
+1. **Stage 5 (Architect)**: Design data schemas (Character, Inventory, Dungeon Floor) using Pydantic models and SQLite table definitions adhering to:
+   - Four playable vocations: Magician, Archer, Fighter, Paladin.
+   - Unified multi-container inventory: 10-slot Action Bar (keys 1–0), 6-slot Backpack grid, and Paperdoll equipment slots.
+   - 40×40 floor format, dynamic lighting radius, monster archetypes, and physical ground tile item stacks (`tile.items`).
+   - Fate Grant progression system and card draft reward structures.
+2. **Stage 6 (Backend Engineer)**: Implement `backend/main.py` exposing:
+   - `GET /api/dungeons/{id}`: 40×40 dungeon floor manifest, tiles, lights, monsters, and ground loot.
+   - `GET /api/characters/{id}`: Character profile, vocation, stats, and saved inventory layout.
+   - `POST /api/character/save`: Save full character progression (vocation, level, stats, 10 action slots, 6 backpack slots, equipment).
+   - `POST /api/dungeon/sync`: Synchronize cleared dungeon state and inventory upon reaching exit stairs.
+3. **Stage 7 (Frontend Engineer)**: Scaffold and build the Vite + TypeScript application in `frontend/`, providing:
+   - 60 FPS 2D canvas grid renderer and dynamic light-masking overlay.
+   - 10 Hz tick engine, input handling (WASD / Arrows / Hotkeys 1–0 / Pointer interaction), monster AI, and combat resolution.
+   - Modular desktop HUD (10-slot Action Bar, 6-slot Backpack, Paperdoll panel, Health/Mana pools, Scrolling Message Log).
+
