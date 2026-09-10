@@ -10,7 +10,8 @@ export class LightingSystem {
     }
     const offHand = player.paperdoll.off_hand;
     const mainHand = player.paperdoll.main_hand;
-    if ((offHand && offHand.item_id === 'torch') || (mainHand && mainHand.item_id === 'torch')) {
+    const hasTorchInAction = player.action_bar?.some(item => item?.item_id === 'torch');
+    if ((offHand && offHand.item_id === 'torch') || (mainHand && mainHand.item_id === 'torch') || hasTorchInAction) {
       return CONFIG.TORCH_LIGHT_RADIUS;
     }
     return CONFIG.BASE_LIGHT_RADIUS;

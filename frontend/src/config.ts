@@ -17,11 +17,11 @@ export const CONFIG = {
   PAPERDOLL_SLOT_NAMES: ['main_hand', 'off_hand', 'armor', 'relic'] as const,
 
   // Lighting
-  BASE_LIGHT_RADIUS: 1,
-  TORCH_LIGHT_RADIUS: 6,
-  LIGHT_SPELL_RADIUS: 7,
+  BASE_LIGHT_RADIUS: 10,
+  TORCH_LIGHT_RADIUS: 12,
+  LIGHT_SPELL_RADIUS: 14,
   LIGHT_SPELL_DURATION_SEC: 30,
-  AMBIENT_LIGHT_RADIUS: 3,
+  AMBIENT_LIGHT_RADIUS: 4,
 
   // Vocation Base Stats
   MAGICIAN_BASE_HP: 60,
